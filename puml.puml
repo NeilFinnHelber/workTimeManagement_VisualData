@@ -1,0 +1,59 @@
+@startuml
+hide empty methods
+hide empty attributes
+
+'website
+'mit java backend
+'postgresql db
+
+entity Workers {
+uid uid
+--
+passwordKey (hash oder 0Auth)
+full name
+}
+
+entity useProfile {
+image
+preferences (im besten fall alles boolean)
+
+}
+
+enum role {}
+entity project {}
+entity shift {
+begin time & date
+end time & date
+}
+'worker time
+entity dataSet {}
+'here all classes will be combined
+'to create the dataset for the graphs
+
+entity graphs {
+     [nicht in der DB]
+sind nur select statements
+}
+'graph select statements, for either user or manager
+
+entity assignment {}
+'which projects a worker works on and their duties in said project
+
+entity kanban {}
+
+entity chat {}
+
+
+'connections
+Workers --> useProfile
+Workers --> graphs
+Workers --> kanban
+Workers --> role
+useProfile --> chat
+Workers --> shift
+
+dataSet -- project
+dataSet -- graphs
+
+kanban --> assignment
+@enduml
