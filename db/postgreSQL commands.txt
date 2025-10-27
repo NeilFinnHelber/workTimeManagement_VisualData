@@ -1,0 +1,93 @@
+--create--
+CREATE DATABASE visual_data;
+
+CREATE TABLE workers (
+    workerID SERIAL PRIMARY KEY,
+    w_passwordKey VARCHAR(50) NOT NULL,
+    w_fullName VARCHAR(50),
+
+    REFERENCES projects(projectID);
+);
+
+table projects(
+projectID serial primary key
+);
+
+//task is the child and projects is the parent
+table tasks(
+id key
+projectID INT REFERENCES projects(projectID)
+);
+
+
+CREATE TYPE task_status AS ENUM ('Pending', 'In Progress', 'Completed', 'On Hold');
+
+CREATE TABLE tasks (
+    task_id SERIAL PRIMARY KEY,
+    task_name VARCHAR(100),
+    status task_status DEFAULT 'Pending'
+);
+
+
+#####################
+--other--
+\c visual_data;   #connect to db
+\dt               #see all tables
+
+ALTER TABLE table_name
+ADD COLUMN column_name data_type [DEFAULT default_value] [NOT NULL];
+
+
+ALTER TABLE table_name
+RENAME COLUMN old_column_name TO new_column_name;
+
+
+
+dump SQL
+%postgresHome%
+"C:\Program Files\PostgreSQL\17\bin\pg_dump.exe" -U postgres -d visual_data -f "C:\Users\%username%\Downloads\data.sql"
+
+#####################
+--code--
+create database visual_data;
+\c visual_data;
+CREATE TYPE project_role AS ENUM ('dev', 'manager', 'contractor');
+CREATE TABLE workers (
+    workerID SERIAL PRIMARY KEY,
+    w_passwordKey VARCHAR(50) NOT NULL,
+    w_fullName VARCHAR(50)
+);
+CREATE TABLE useProfiles (
+    profileID SERIAL PRIMARY KEY,
+    p_image VARCHAR(255) NOT NULL,
+    p_preference_isLightMode boolean,
+    kanbanIDs INT[],
+    workerID INT REFERENCES workers(workerID)
+);
+CREATE TABLE chats (
+    chatID SERIAL PRIMARY KEY,
+    profileID INT REFERENCES useProfiles(profileID)
+);
+CREATE TABLE kanbans (
+    kanbanID SERIAL PRIMARY KEY,
+    workerID INT REFERENCES workers(workerID)
+);
+CREATE TABLE shifts (
+    shiftID SERIAL PRIMARY KEY,
+    s_beginTime TIMESTAMP NOT NULL,
+    s_endTime TIMESTAMP NOT NULL,
+    workerID INT REFERENCES workers(workerID),
+    kananID INT REFERENCES kanbans(kananID)
+);
+CREATE TABLE assigments (
+    assigmentID SERIAL PRIMARY KEY,
+    kanbanID INT REFERENCES kanbans(kanbanID)
+);
+CREATE TABLE datasets (
+    datasetID SERIAL PRIMARY KEY,
+    workerID INT REFERENCES workers(workerID)
+);
+CREATE TABLE projects (
+    projectID SERIAL PRIMARY KEY,
+    kanbanID INT REFERENCES kanbans(kanbanID)
+);

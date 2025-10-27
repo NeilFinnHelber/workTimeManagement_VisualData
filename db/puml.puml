@@ -16,7 +16,7 @@ full name
 entity useProfile {
 image
 preferences (im besten fall alles boolean)
-
+projects
 }
 
 enum role {}
@@ -54,6 +54,8 @@ Workers --> shift
 
 dataSet -- project
 dataSet -- graphs
+dataSet -- Workers
+project -- kanban
 
 kanban --> assignment
 @enduml
