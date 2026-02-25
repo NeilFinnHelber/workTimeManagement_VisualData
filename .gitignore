@@ -3,11 +3,6 @@
 /frontend/node_modules
 node_modules/
 
-# Package manager
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
 # Build artifacts
 /backend/dist
 /frontend/dist
@@ -33,9 +28,6 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
-
-# Docker
-.dockerignore
 
 # Development
 .cache
