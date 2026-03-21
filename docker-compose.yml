@@ -1,28 +1,29 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: worktime_postgres
+  mariadb:
+    image: mariadb:11.1
+    container_name: worktime_mariadb
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: visual_data
+      MYSQL_ROOT_PASSWORD: rootpassword   
+      MYSQL_DATABASE: visual_data         
+      MYSQL_USER: workuser               
+      MYSQL_PASSWORD: workpassword       
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mariadb_data:/var/lib/mysql
       - ./db/data.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - worktime_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  postgres_data:
+  mariadb_data:
 
 networks:
   worktime_network:
