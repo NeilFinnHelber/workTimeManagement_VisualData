@@ -1,28 +1,58 @@
-PostgreSQL db
+Mariadb db
 
-express backend / java backend
+express backend 
 
 VUE GUI
 
-Mitarbeiter anlegen (Name, Geburtsdatum, Adresse, Kontaktdaten)
-Aufgaben erstellen, Mitarbeitern aufgaben zuweisen
+Projekte erstellen und fertigstellen 
+    name
+    description
+    complete
 
-per Mitarbeiter Arbeitsstunden erfassen (Beginn, Ende, projekt und berechnete Dauer täglich)
-[https://www.verdi.de/arbeit-recht/arbeitszeiterfassung-alles-was-du-dazu-wissen-musst]
 
-Arbeitszeit statistiken 
+Mitarbeiter anlegen (rolle, name, email)
+Rollen (Manager, Developer, designer, Administrator) 
 
-Rollen (Mitarbeiter/employee, Manager, Administrator) 
+
+Zeiterfassung pro Tag
+    user
+    projekt
+    startzeit total & endzeit total
+    pausenzeit
+    dauer (berechnet)
+    erstelltes datum
+    optionale Notizen
+
+
+Shift (mehrere pro Tag) 
+    issue #id
+    start der shift & ende der shift
+    optionale Notizen
+
+
+Arbeitszeit statistiken Auswertung und charts erstellen 
+    name
+    type (bar, line, pie)
+    metric 
+    group_by (project, user, day)
+    project & user 
+    created at
 
 
 Kann ziele:
-benutzerdefinierte berichte (possible)
-whiteboard
-mind-map
+- Zeit pro Tag/Woche
+- Durchschnittliche Arbeitszeit
+- Aktivitätsverlauf (Timeline)
+- issues von GitHub einlesen über api 
+- benutzerdefinierte berichte (possible)
+- whiteboard
+- mind-map
 
 
 nicht ziele:
-ki
-SQL query builder
-codehighlighting 
-echtzeit-video konferenzen
+! ki
+! SQL query builder
+! codehighlighting 
+! echtzeit-video konferenzen 
+
+
