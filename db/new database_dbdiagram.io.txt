@@ -1,0 +1,49 @@
+Table users {
+  id integer [primary key, increment]
+  name text [not null]
+  email text [not null, unique]
+  role text [note: 'manager, developer, admin']
+}
+
+Table projects {
+  id integer [primary key, increment]
+  name text [not null]
+  description text
+}
+
+Table time_table {
+  id integer [primary key, increment]
+  user_id integer [not null]  
+  project_id integer [not null]  
+  total_start_time datetime [not null]
+  total_end_time datetime [not null]
+  break_duration integer [default: 0]  
+  note text
+  created_at datetime [default: `CURRENT_TIMESTAMP`]
+}
+
+Table shift_parts {
+  id integer [primary key, increment]
+  shift_id integer [not null]  
+  issue_text text [note: "GitHub issue oder Task Beschreibung"]
+  start_time datetime [not null]
+  end_time datetime [not null]
+  note text
+}
+
+Table charts {
+  id integer [primary key, increment]
+  name text [not null]
+  type text [note: 'bar, line, pie']
+  metric text [note: 'time_per_project, time_per_user, activity_over_time']
+  group_by text [note: 'project, user, day, week']
+  filter_project_id integer
+  filter_user_id integer
+  created_by integer
+  created_at datetime [default: `CURRENT_TIMESTAMP`]
+}
+
+Ref: time_table.user_id > users.id
+Ref: time_table.project_id > projects.id
+Ref: shift_parts.shift_id > time_table.id
+Ref: charts.created_by > users.id
