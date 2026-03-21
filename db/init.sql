@@ -15,13 +15,15 @@ INSERT INTO users (name, email, role) VALUES
 CREATE TABLE projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(150) NOT NULL,
-    description TEXT
+    description TEXT,
+    completed BOOLEAN DEFAULT FALSE
 );
 
 -- testdaten
-INSERT INTO projects (name, description) VALUES
-('Project Alpha', 'Erstes Testprojekt'),
-('Project Beta', 'Zweites Testprojekt');
+INSERT INTO projects (name, description, completed) VALUES
+('Project Alpha', 'Erstes Testprojekt', FALSE),
+('Project Beta', 'Zweites Testprojekt', FALSE),
+('Project Gamma', 'Drittes Testprojekt', TRUE);
 
 
 CREATE TABLE time_table (
