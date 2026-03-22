@@ -1,0 +1,322 @@
+{
+  "info": {
+    "_postman_id": "visualdata-put-tests",
+    "name": "visualData PUT Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ],
+  "item": [
+    {
+      "name": "PUT User - Valid",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Alice Updated\",\n  \"email\": \"alice.updated@example.com\",\n  \"role\": \"developer\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["users","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => { pm.response.to.have.status(200); });",
+              "",
+              "pm.test('Success message', () => {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.message).to.include('updated');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT User - Missing Fields",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Only Name\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["users","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should return 400', () => { pm.response.to.have.status(400); });",
+              "",
+              "pm.test('Error message exists', () => {",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT User - Invalid ID",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test\",\n  \"email\": \"test@example.com\",\n  \"role\": \"developer\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/99999",
+          "host": ["{{baseUrl}}"],
+          "path": ["users","99999"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should return 404 or handled error', () => {",
+              "    pm.expect([404,500]).to.include(pm.response.code);",
+              "});",
+              "",
+              "pm.test('Has message', () => {",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Project - Valid",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Project Updated\",\n  \"description\": \"Updated description\",\n  \"completed\": false\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/projects/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["projects","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => { pm.response.to.have.status(200); });",
+              "",
+              "pm.test('Success message', () => {",
+              "    pm.expect(pm.response.json().message).to.include('updated');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Project - Missing Fields",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Only Name\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/projects/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["projects","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should return 400', () => { pm.response.to.have.status(400); });",
+              "pm.expect(pm.response.json()).to.have.property('message');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Time Entry - Valid",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1,\n  \"project_id\": 1,\n  \"total_start_time\": \"2026-03-21 08:00:00\",\n  \"total_end_time\": \"2026-03-21 12:00:00\",\n  \"break_duration\": 30,\n  \"note\": \"Updated\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/time_table/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["time_table","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => { pm.response.to.have.status(200); });",
+              "pm.expect(pm.response.json().message).to.include('updated');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Time Entry - Missing Fields",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/time_table/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["time_table","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should return 400', () => { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Shift Part - Valid",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shift_id\": 1,\n  \"issue_text\": \"Updated\",\n  \"start_time\": \"2026-03-21 08:00:00\",\n  \"end_time\": \"2026-03-21 10:00:00\",\n  \"note\": \"Updated note\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/shift_parts/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["shift_parts","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Shift Part - Missing Fields",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shift_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/shift_parts/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["shift_parts","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should return 400', () => { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Chart - Valid",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Updated Chart\",\n  \"type\": \"bar\",\n  \"metric\": \"time_per_project\",\n  \"group_by\": \"project\",\n  \"filter_project_id\": null,\n  \"filter_user_id\": null\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/charts/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["charts","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', () => { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUT Chart - Missing Fields",
+      "request": {
+        "method": "PUT",
+        "header": [{"key": "Content-Type","value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Only Name\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/charts/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["charts","1"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Should return 400', () => { pm.response.to.have.status(400); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
