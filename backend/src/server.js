@@ -130,23 +130,23 @@ let connection;
 try {  connection = await pool.getConnection();
   const { id } = req.params;
   const { name, email, role } = req.body;
-    
+
   if (!name || !email || !role) {
       return res.status(400).json({ message: "All fields are required" });
   }
   const result = await connection.query("UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?", [name, email, role, id]);
-  
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "User entry not found" });
     }
-  
+
   res.json({ message: "User updated successfully" });
-} 
+}
 catch (err) {
   console.error("Error updating user:", err);
   res.status(500).json({ message: "Error updating user" });
 }
-finally 
+finally
 {
     if (connection) connection.release();
 }
@@ -335,15 +335,116 @@ app.put("/charts/:id", async (req, res) => {
 
 //  ---------- all deletes ----------
 
-app.delete("/users/:id", async (req, res) => {})
+app.delete("/users/:id", async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    const { id } = req.params;
+    const result = await connection.query("DELETE FROM users WHERE id = ?",[id]);
 
-app.delete("/projects/:id", async (req, res) => {})
+    if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "User not found" });
+    }
+    else {
+        res.json({message: "User deleted successfully"});
+    }
+  }
+  catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ message: "Error deleting user" });
+  } finally {
+    if (connection) connection.release();
+  }
+})
 
-app.delete("/time_table/:id", async (req, res) => {})
+app.delete("/projects/:id", async (req, res) => {
+  let connection;
+  try {
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM projects WHERE id = ?",[id]);
 
-app.delete("/shift_parts/:id", async (req, res) => {})
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Project not found" });
+      }
+      else {
+          res.json({message: "Project part deleted successfully"});
+      }
+  }
+  catch (err) {
+    console.error("Error deleting project:", err);
+    res.status(500).json({ message: "Error deleting project" });
+  } finally {
+    if (connection) connection.release();
+  }
+})
 
-app.delete("/charts/:id", async (req, res) => {})
+app.delete("/time_table/:id", async (req, res) => {
+  let connection;
+  try {
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM time_table WHERE id = ?",[id]);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Time table not found" });
+      }
+      else {
+          res.json({message: "Time table part deleted successfully"});
+      }
+  }
+  catch (err) {
+    console.error("Error deleting time table:", err);
+    res.status(500).json({ message: "Error deleting time table" });
+  } finally {
+    if (connection) connection.release();
+  }
+})
+
+app.delete("/shift_parts/:id", async (req, res) => {
+  let connection;
+  try {
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM shift_parts WHERE id = ?",[id]);
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Shift part not found" });
+      }
+      else{
+          res.json({ message: "Shift part deleted successfully" });
+      }
+  }
+  catch (err) {
+    console.error("Error deleting shift part:", err);
+    res.status(500).json({ message: "Error deleting shift part" });
+  } finally {
+    if (connection) connection.release();
+  }
+})
+
+app.delete("/charts/:id", async (req, res) => {
+  let connection;
+  try {
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM charts WHERE id = ?",[id]);
+
+
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Chart not found" });
+      }
+      else{
+          res.json({ message: "Chart deleted successfully" });
+      }
+  }
+  catch (err) {
+    console.error("Error deleting chart:", err);
+    res.status(500).json({ message: "Error deleting chart" });
+  } finally {
+    if (connection) connection.release();
+  }
+})
 
 
 // ------------------ Start server ------------------
