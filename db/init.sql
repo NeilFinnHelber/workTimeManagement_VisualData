@@ -35,8 +35,8 @@ CREATE TABLE time_table (
     break_duration INT DEFAULT 0, -- in Minuten
     note TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (project_id) REFERENCES projects(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) on delete cascade ,
+    FOREIGN KEY (project_id) REFERENCES projects(id) on delete cascade
 );
 
 -- testdaten
@@ -54,7 +54,7 @@ CREATE TABLE shift_parts (
     start_time DATETIME NOT NULL,
     end_time DATETIME NOT NULL,
     note TEXT,
-    FOREIGN KEY (shift_id) REFERENCES time_table(id)
+    FOREIGN KEY (shift_id) REFERENCES time_table(id) on delete cascade
 );
 
 -- testdaten
@@ -77,7 +77,7 @@ CREATE TABLE charts (
     filter_user_id INT,
     created_by INT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id)
+    FOREIGN KEY (created_by) REFERENCES users(id) on delete set null
 );
 
 -- testdaten
