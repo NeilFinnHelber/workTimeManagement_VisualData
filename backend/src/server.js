@@ -333,6 +333,19 @@ app.put("/charts/:id", async (req, res) => {
   }
 });
 
+//  ---------- all deletes ----------
+
+app.delete("/users/:id", async (req, res) => {})
+
+app.delete("/projects/:id", async (req, res) => {})
+
+app.delete("/time_table/:id", async (req, res) => {})
+
+app.delete("/shift_parts/:id", async (req, res) => {})
+
+app.delete("/charts/:id", async (req, res) => {})
+
+
 // ------------------ Start server ------------------
 app.listen(port, () => {
   console.log(`Backend running at http://localhost/:${port}/api-v1`);
