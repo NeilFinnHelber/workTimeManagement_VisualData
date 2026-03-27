@@ -1,6 +1,15 @@
-const express = require("express");
-const cors = require("cors");
+// server.js
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import * as mariadb from "mariadb";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
 const app = express();
 const port = 3000;
 
@@ -121,23 +130,23 @@ let connection;
 try {  connection = await pool.getConnection();
   const { id } = req.params;
   const { name, email, role } = req.body;
-    
+
   if (!name || !email || !role) {
       return res.status(400).json({ message: "All fields are required" });
   }
   const result = await connection.query("UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?", [name, email, role, id]);
-  
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "User entry not found" });
     }
-  
+
   res.json({ message: "User updated successfully" });
-} 
+}
 catch (err) {
   console.error("Error updating user:", err);
   res.status(500).json({ message: "Error updating user" });
 }
-finally 
+finally
 {
     if (connection) connection.release();
 }
@@ -324,216 +333,118 @@ app.put("/charts/:id", async (req, res) => {
   }
 });
 
+//  ---------- all deletes ----------
 
-// ---------- all posts ----------
-
-// Create User
-app.post("/users", async (req, res) => {
+app.delete("/users/:id", async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
+    const { id } = req.params;
+    const result = await connection.query("DELETE FROM users WHERE id = ?",[id]);
 
-    const { name, email, role } = req.body;
-
-    if (!name || !email || !role) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "User not found" });
     }
-
-    const result = await connection.query(
-      "INSERT INTO users (name, email, role) VALUES (?, ?, ?)",
-      [name, email, role]
-    );
-
-    res.status(201).json({
-      message: "User created successfully",
-      id: result.insertId,
-    });
-  } catch (err) {
-    console.error("Error creating user:", err);
-    res.status(500).json({ message: "Error creating user" });
+    else {
+        res.json({message: "User deleted successfully"});
+    }
+  }
+  catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ message: "Error deleting user" });
   } finally {
     if (connection) connection.release();
   }
-});
+})
 
-
-// Create Project
-app.post("/projects", async (req, res) => {
+app.delete("/projects/:id", async (req, res) => {
   let connection;
   try {
-    connection = await pool.getConnection();
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM projects WHERE id = ?",[id]);
 
-    const { name, description, completed } = req.body;
-
-    if (!name || description === undefined || completed === undefined) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const result = await connection.query(
-      `INSERT INTO projects (name, description, completed)
-       VALUES (?, ?, ?)`,
-      [name, description, completed]
-    );
-
-    res.status(201).json({
-      message: "Project created successfully",
-      id: result.insertId,
-    });
-  } catch (err) {
-    console.error("Error creating project:", err);
-    res.status(500).json({ message: "Error creating project" });
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Project not found" });
+      }
+      else {
+          res.json({message: "Project part deleted successfully"});
+      }
+  }
+  catch (err) {
+    console.error("Error deleting project:", err);
+    res.status(500).json({ message: "Error deleting project" });
   } finally {
     if (connection) connection.release();
   }
-});
+})
 
-
-// Create Time Entry
-app.post("/time_table", async (req, res) => {
+app.delete("/time_table/:id", async (req, res) => {
   let connection;
   try {
-    connection = await pool.getConnection();
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM time_table WHERE id = ?",[id]);
 
-    const {
-      user_id,
-      project_id,
-      total_start_time,
-      total_end_time,
-      break_duration,
-      note,
-    } = req.body;
-
-    if (
-      user_id === undefined ||
-      project_id === undefined ||
-      total_start_time === undefined ||
-      total_end_time === undefined ||
-      break_duration === undefined ||
-      note === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const result = await connection.query(
-      `INSERT INTO time_table 
-       (user_id, project_id, total_start_time, total_end_time, break_duration, note)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        user_id,
-        project_id,
-        total_start_time,
-        total_end_time,
-        break_duration,
-        note,
-      ]
-    );
-
-    res.status(201).json({
-      message: "Time entry created successfully",
-      id: result.insertId,
-    });
-  } catch (err) {
-    console.error("Error creating time entry:", err);
-    res.status(500).json({ message: "Error creating time entry" });
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Time table not found" });
+      }
+      else {
+          res.json({message: "Time table part deleted successfully"});
+      }
+  }
+  catch (err) {
+    console.error("Error deleting time table:", err);
+    res.status(500).json({ message: "Error deleting time table" });
   } finally {
     if (connection) connection.release();
   }
-});
+})
 
-
-// Create Shift Part
-app.post("/shift_parts", async (req, res) => {
+app.delete("/shift_parts/:id", async (req, res) => {
   let connection;
   try {
-    connection = await pool.getConnection();
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM shift_parts WHERE id = ?",[id]);
 
-    const { shift_id, issue_text, start_time, end_time, note } = req.body;
-
-    if (
-      shift_id === undefined ||
-      issue_text === undefined ||
-      start_time === undefined ||
-      end_time === undefined ||
-      note === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const result = await connection.query(
-      `INSERT INTO shift_parts 
-       (shift_id, issue_text, start_time, end_time, note)
-       VALUES (?, ?, ?, ?, ?)`,
-      [shift_id, issue_text, start_time, end_time, note]
-    );
-
-    res.status(201).json({
-      message: "Shift part created successfully",
-      id: result.insertId,
-    });
-  } catch (err) {
-    console.error("Error creating shift part:", err);
-    res.status(500).json({ message: "Error creating shift part" });
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Shift part not found" });
+      }
+      else{
+          res.json({ message: "Shift part deleted successfully" });
+      }
+  }
+  catch (err) {
+    console.error("Error deleting shift part:", err);
+    res.status(500).json({ message: "Error deleting shift part" });
   } finally {
     if (connection) connection.release();
   }
-});
+})
 
-
-// Create Chart
-app.post("/charts", async (req, res) => {
+app.delete("/charts/:id", async (req, res) => {
   let connection;
   try {
-    connection = await pool.getConnection();
+      connection = await pool.getConnection();
+      const { id } = req.params;
+      const result = await connection.query("DELETE FROM charts WHERE id = ?",[id]);
 
-    const {
-      name,
-      type,
-      metric,
-      group_by,
-      filter_project_id,
-      filter_user_id,
-      created_by,
-    } = req.body;
 
-    if (
-      name === undefined ||
-      type === undefined ||
-      metric === undefined ||
-      group_by === undefined ||
-      filter_project_id === undefined ||
-      filter_user_id === undefined ||
-      created_by === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const result = await connection.query(
-      `INSERT INTO charts 
-       (name, type, metric, group_by, filter_project_id, filter_user_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        name,
-        type,
-        metric,
-        group_by,
-        filter_project_id,
-        filter_user_id,
-        created_by,
-      ]
-    );
-
-    res.status(201).json({
-      message: "Chart created successfully",
-      id: result.insertId,
-    });
-  } catch (err) {
-    console.error("Error creating chart:", err);
-    res.status(500).json({ message: "Error creating chart" });
+      if (result.affectedRows === 0) {
+          return res.status(404).json({ message: "Chart not found" });
+      }
+      else{
+          res.json({ message: "Chart deleted successfully" });
+      }
+  }
+  catch (err) {
+    console.error("Error deleting chart:", err);
+    res.status(500).json({ message: "Error deleting chart" });
   } finally {
     if (connection) connection.release();
   }
-});
-
+})
 
 
 // ------------------ Start server ------------------
