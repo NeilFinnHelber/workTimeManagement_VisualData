@@ -1,22 +1,24 @@
 {
   "info": {
-    "_postman_id": "69c7cf8b-e829-4da2-8a7b-fbdfa3da799b",
-    "name": "visualData get tests",
+    "_postman_id": "4b13f0ac-0471-4ece-a26e-aa770f228072",
+    "name": "visualData POST test",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "43356958"
   },
   "item": [
     {
-      "name": "get users",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "post user",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "{\r\n  \"name\": \"Max Mustermann\",\r\n  \"email\": \"max@example.com\",\r\n  \"role\": \"admin\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
           "raw": "{{baseUrl}}/users",
@@ -31,16 +33,18 @@
       "response": []
     },
     {
-      "name": "get projects",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "post projects",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "{\r\n  \"name\": \"Website Redesign\",\r\n  \"description\": \"Redesign company website\",\r\n  \"completed\": false\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
           "raw": "{{baseUrl}}/projects",
@@ -55,16 +59,18 @@
       "response": []
     },
     {
-      "name": "get time table",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "post time_table",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "{\r\n  \"user_id\": 1,\r\n  \"project_id\": 1,\r\n  \"total_start_time\": \"2026-03-25 08:00:00\",\r\n  \"total_end_time\": \"2026-03-25 16:00:00\",\r\n  \"break_duration\": 30,\r\n  \"note\": \"Regular work day\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
           "raw": "{{baseUrl}}/time_table",
@@ -79,16 +85,18 @@
       "response": []
     },
     {
-      "name": "get shift parts",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "post shift_parts",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "{\r\n  \"shift_id\": 1,\r\n  \"issue_text\": \"Bug fixing\",\r\n  \"start_time\": \"2026-03-25 10:00:00\",\r\n  \"end_time\": \"2026-03-25 12:00:00\",\r\n  \"note\": \"Fixed login issue\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
           "raw": "{{baseUrl}}/shift_parts",
@@ -103,16 +111,18 @@
       "response": []
     },
     {
-      "name": "get charts",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "post charts",
       "request": {
-        "method": "GET",
+        "method": "POST",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "{\r\n  \"name\": \"Work Hours per Project\",\r\n  \"type\": \"bar\",\r\n  \"metric\": \"total_hours\",\r\n  \"group_by\": \"project\",\r\n  \"filter_project_id\": null,\r\n  \"filter_user_id\": null,\r\n  \"created_by\": 1\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
           "raw": "{{baseUrl}}/charts",

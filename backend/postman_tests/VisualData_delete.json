@@ -1,126 +1,141 @@
 {
   "info": {
-    "_postman_id": "69c7cf8b-e829-4da2-8a7b-fbdfa3da799b",
-    "name": "visualData get tests",
+    "_postman_id": "9d83c78a-f44c-4cea-9943-78d854e0fd10",
+    "name": "visualData DELETE test",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "43356958"
   },
   "item": [
     {
-      "name": "get users",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "delete users",
       "request": {
-        "method": "GET",
+        "method": "DELETE",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
-          "raw": "{{baseUrl}}/users",
+          "raw": "{{baseUrl}}/users/1",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "users"
+            "users",
+            "1"
           ]
         }
       },
       "response": []
     },
     {
-      "name": "get projects",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "delete projects",
       "request": {
-        "method": "GET",
+        "method": "DELETE",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
-          "raw": "{{baseUrl}}/projects",
+          "raw": "{{baseUrl}}/projects/1",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "projects"
+            "projects",
+            "1"
           ]
         }
       },
       "response": []
     },
     {
-      "name": "get time table",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "delete time_table",
       "request": {
-        "method": "GET",
+        "method": "DELETE",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
-          "raw": "{{baseUrl}}/time_table",
+          "raw": "{{baseUrl}}/time_table/1",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "time_table"
+            "time_table",
+            "1"
           ]
         }
       },
       "response": []
     },
     {
-      "name": "get shift parts",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "delete shift_parts",
       "request": {
-        "method": "GET",
+        "method": "DELETE",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
-          "raw": "{{baseUrl}}/shift_parts",
+          "raw": "{{baseUrl}}/shift_parts/1",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "shift_parts"
+            "shift_parts",
+            "1"
           ]
         }
       },
       "response": []
     },
     {
-      "name": "get charts",
-      "protocolProfileBehavior": {
-        "disableBodyPruning": true
-      },
+      "name": "delete charts",
       "request": {
-        "method": "GET",
+        "method": "DELETE",
         "header": [],
         "body": {
-          "mode": "formdata",
-          "formdata": []
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         },
         "url": {
-          "raw": "{{baseUrl}}/charts",
+          "raw": "{{baseUrl}}/charts/1",
           "host": [
             "{{baseUrl}}"
           ],
           "path": [
-            "charts"
+            "charts",
+            "1"
           ]
         }
       },
