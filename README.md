@@ -22,7 +22,7 @@ mind-map
 
 
 nicht ziele:
-ki
-SQL query builder
-codehighlighting 
-echtzeit-video konferenzen
+- ki
+- SQL query builder
+- codehighlighting 
+- echtzeit-video konferenzen
