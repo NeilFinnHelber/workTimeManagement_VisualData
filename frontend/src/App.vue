@@ -203,7 +203,7 @@ onMounted(fetchAll);
 }
 
 .table-container { 
-  background: white; 
+  background: rgb(0, 0, 0); 
   border-radius: 12px; 
   border: 1px solid #e2e8f0; 
   box-shadow: 0 4px 20px rgba(0,0,0,0.05);
