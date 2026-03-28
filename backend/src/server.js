@@ -1,5 +1,7 @@
-const express = require("express");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
+import * as mariadb from "mariadb";
+
 
 const app = express();
 const port = 3000;
@@ -16,6 +18,7 @@ const pool = mariadb.createPool({
   password: "rootpassword",
   database: "visual_data",
   port: 3306,
+  bigIntAsNumber: true
 });
 
 
@@ -346,7 +349,7 @@ app.post("/users", async (req, res) => {
 
     res.status(201).json({
       message: "User created successfully",
-      id: result.insertId,
+     id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating user:", err);
@@ -377,7 +380,7 @@ app.post("/projects", async (req, res) => {
 
     res.status(201).json({
       message: "Project created successfully",
-      id: result.insertId,
+      id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating project:", err);
@@ -430,7 +433,7 @@ app.post("/time_table", async (req, res) => {
 
     res.status(201).json({
       message: "Time entry created successfully",
-      id: result.insertId,
+       id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating time entry:", err);
@@ -468,7 +471,7 @@ app.post("/shift_parts", async (req, res) => {
 
     res.status(201).json({
       message: "Shift part created successfully",
-      id: result.insertId,
+       id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating shift part:", err);
@@ -524,7 +527,7 @@ app.post("/charts", async (req, res) => {
 
     res.status(201).json({
       message: "Chart created successfully",
-      id: result.insertId,
+       id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating chart:", err);
