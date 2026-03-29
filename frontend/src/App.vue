@@ -1,225 +1,300 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import ModalView from "./views/ModalView.vue";
+import { ref } from 'vue';
+import UserDashboard from './views/UserDashboard.vue';
 
-const sidebarWidth = ref(450);
-let isResizing = false;
+const user = ref(null);
+const usernameInput = ref('');
+const activeTab = ref('dashboard');
+const errorMessage = ref('');
+const loading = ref(false);
 
-function startResize() {
-  isResizing = true;
-  document.body.style.userSelect = 'none';
+
+const showErrorPopup = ref(false);
+const popupMessage = ref('');
+
+function showError(msg) {
+  popupMessage.value = msg;
+  showErrorPopup.value = true;
+
+  setTimeout(() => {
+    showErrorPopup.value = false;
+  }, 3000);
 }
 
-function onMouseMove(e) {
-  if (!isResizing) return;
+// --- LOGIN WITH BACKEND ---
+async function login() {
+  if (!usernameInput.value) return;
 
-  const sidebar = document.querySelector('.sidebar');
-  if (!sidebar) return;
+  errorMessage.value = '';
+  loading.value = true;
 
-  const sidebarLeft = sidebar.getBoundingClientRect().left;
+  try {
+    const inputName = usernameInput.value.toLowerCase();
 
-  const newWidth = Math.max(
-    250,
-    Math.min(800, e.clientX - sidebarLeft)
-  );
+    const res = await fetch('http://localhost:3000/users');
+    const users = await res.json();
 
-  sidebarWidth.value = newWidth;
-}
+    if (!res.ok) {
+      throw new Error('Server error');
+    }
 
-function stopResize() {
-  if (isResizing) {
-    isResizing = false;
-    document.body.style.userSelect = '';
+    // case-insensitive match
+    const foundUser = users.find(
+      u => u.name.toLowerCase() === inputName
+    );
+
+    if (!foundUser) {
+      throw new Error('User not found');
+    }
+
+    user.value = {
+      id: foundUser.id,
+      name: foundUser.name,
+      role: foundUser.role
+    };
+
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    loading.value = false;
   }
 }
-
-onMounted(() => {
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', stopResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('mousemove', onMouseMove);
-  window.removeEventListener('mouseup', stopResize);
-});
 </script>
+
 
 <template>
   <div id="app-root">
-    
-    <!-- HEADER -->
-    <header class="main-header">
-      <div class="logo">VISUAL<span>DATA</span></div>
-      <nav class="main-nav">
-        <router-link to="/">Overview</router-link>
-        <router-link to="/user-dashboard">User Dashboard</router-link>
-      </nav>
-    </header>
-
-    <!-- MAIN LAYOUT -->
-    <div class="layout">
-      
-      <aside 
-        class="sidebar" 
-        :style="{ width: sidebarWidth + 'px' }"
-      >
-        <div class="sidebar-label">Control Panel</div>
-
-        <ModalView />
-
-        <!-- RESIZER HANDLE -->
-        <div class="resizer" @mousedown="startResize"></div>
-      </aside>
-
-      <main class="content-area">
-        <router-view />
-      </main>
-
+  <div v-if="showErrorPopup" class="error-popup">
+  {{ popupMessage }}
+</div>
+    <div v-if="!user" class="login-container">
+      <div class="login-card">
+        <h1>Welcome Back</h1>
+        <p>Please sign in to your account</p>
+        <div class="form-group">
+          <label>Username</label>
+          <input v-model="usernameInput" placeholder="Enter your name..." @keyup.enter="login" />
+        </div>
+        <button class="btn-primary btn-large" @click="login">Sign In</button>
+      </div>
     </div>
 
+    <div v-else class="app-layout">
+      <aside class="sidebar">
+        <div class="user-profile">
+          <div class="avatar">{{ user.name[0].toUpperCase() }}</div>
+          <span>{{ user.name }}</span>
+        </div>
+        
+        <nav class="nav-links">
+          <button 
+            :class="['nav-item', { active: activeTab === 'dashboard' }]"
+            @click="activeTab = 'dashboard'"
+          >
+            📊 Dashboard
+          </button>
+          <button 
+            :class="['nav-item', { active: activeTab === 'charts' }]"
+            @click="activeTab = 'charts'"
+          >
+            📈 Analytics
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <UserDashboard v-if="activeTab === 'dashboard'" />
+        
+        <div v-else class="view-card">
+          <h2>Analytics</h2>
+          <div class="placeholder-content">
+            <span style="font-size: 3rem">📊</span>
+            <p>Data visualization modules loading...</p>
+          </div>
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
 <style>
-* {
-  box-sizing: border-box;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
+:root {
+  --bg-dark: #0f1115;
+  --bg-card: #1c1f26;
+  --bg-input: #2a2f36;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --text-main: #f3f4f6;
+  --text-dim: #9ca3af;
+  --border: #374151;
 }
 
 body {
-  background: #020617;
-  color: #f8fafc;
-  font-family: 'Inter', -apple-system, sans-serif;
-  overflow: hidden;
+  margin: 0;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ROOT */
-#app-root {
+/* Auth Styles */
+.login-container {
   height: 100vh;
-  width: 100vw;
-  display: flex;
-  flex-direction: column;
-}
-
-/* HEADER */
-.main-header {
-  height: 64px;
-  flex-shrink: 0;
-  width: 100%;
-
   display: flex;
   align-items: center;
-  justify-content: space-between;
-
-  padding: 0 2rem;
-
-  background: #0f172a;
-  border-bottom: 1px solid #1e293b;
+  justify-content: center;
+  padding: 1rem;
 }
 
-/* LAYOUT */
-.layout {
-  flex: 1;
+.login-card {
+  background: var(--bg-card);
+  padding: 2.5rem;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+/* Sidebar & Nav */
+.app-layout {
   display: flex;
-  overflow: hidden;
+  height: 100vh;
 }
 
-/* SIDEBAR */
 .sidebar {
-  position: relative;
+  width: 240px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-
-  scrollbar-gutter: stable;
+  padding: 1.5rem;
 }
 
-/* RESIZER */
-.resizer {
-  position: absolute;
-  top: 0;
-  right: 0;
-
-  width: 5px;
-  height: 100%;
-
-  cursor: col-resize;
-  background: transparent;
-}
-
-.resizer:hover {
-  background: rgba(59, 130, 246, 0.3);
-}
-
-/* SIDEBAR LABEL */
-.sidebar-label {
-  padding: 1rem;
-
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #64748b;
-
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-
-  background: #0f172a;
-
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-/* CONTENT AREA */
-.content-area {
-  flex: 1;
-  min-width: 0;
-
-  background: #020617;
-
-  padding: 4rem;
-  overflow-y: auto;
-}
-
-/* NAV */
-.logo {
-  font-weight: 800;
-  font-size: 1.25rem;
-  color: #3b82f6;
-}
-
-.logo span {
-  color: #fff;
-}
-
-.main-nav {
+.user-profile {
   display: flex;
-  gap: 1.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.main-nav a {
-  color: #94a3b8;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.9rem;
+.avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
 
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
+.nav-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
   transition: all 0.2s;
 }
 
-.main-nav a:hover {
-  color: #fff;
-  background: #1e293b;
+.nav-item:hover {
+  background: var(--bg-input);
+  color: white;
 }
 
-.main-nav a.router-link-active {
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.1);
+.nav-item.active {
+  background: var(--primary);
+  color: white;
 }
+
+/* Common UI Elements */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-large {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.form-group {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: white;
+  outline: none;
+}
+
+.error-popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+
+  background: #ef4444;
+  color: white;
+
+  padding: 0.75rem 1.2rem;
+  border-radius: 8px;
+
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+
+  font-weight: 500;
+  z-index: 999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+input:focus { border-color: var(--primary); }
 </style>

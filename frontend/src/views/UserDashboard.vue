@@ -1,72 +1,79 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-
-const route = useRoute();
-const projectId = computed(() => route.query.projectId);
+import { ref, computed, onMounted, watch } from 'vue';
 
 // --- STATE ---
-const project = ref(null);
-const loading = ref(false);
+const projects = ref([]);
+const selectedProjectId = ref(null);
+const shiftParts = ref([]);
 
-// Shift part form
+const project = computed(() =>
+  projects.value.find(p => p.id === selectedProjectId.value)
+);
+
+// --- TIME ---
+const currentTime = ref(new Date());
+setInterval(() => currentTime.value = new Date(), 1000);
+
+// --- FORM ---
 const shiftPart = ref({
-  shift_id: '',
   issue_text: '',
   start_time: '',
   end_time: '',
   note: ''
 });
 
-const successMessage = ref('');
-const errorMessage = ref('');
-
-// --- FETCH PROJECT ---
-async function fetchProject() {
-  if (!projectId.value) {
-    project.value = null;
-    return;
-  }
-
-  loading.value = true;
-
+// --- FETCH PROJECTS ---
+async function fetchProjects() {
   try {
-    const res = await fetch(`http://localhost:3000/projects/${projectId.value}`);
+    const res = await fetch('http://localhost:3000/projects');
     const data = await res.json();
-
-    project.value = data;
+    projects.value = data;
   } catch (err) {
-    console.error(err);
-  } finally {
-    loading.value = false;
+    console.error('Error fetching projects:', err);
   }
 }
 
-// --- SUBMIT SHIFT PART ---
+// --- FETCH SHIFT PARTS ---
+async function fetchShiftParts() {
+  if (!selectedProjectId.value) return;
+
+  try {
+    const res = await fetch(
+      `http://localhost:3000/shift_parts?project_id=${selectedProjectId.value}`
+    );
+
+    const data = await res.json();
+    shiftParts.value = data;
+  } catch (err) {
+    console.error('Error fetching shift parts:', err);
+  }
+}
+
+// --- CREATE SHIFT PART ---
 async function submitShiftPart() {
-  errorMessage.value = '';
-  successMessage.value = '';
+  if (!shiftPart.value.issue_text) return;
 
   try {
     const res = await fetch('http://localhost:3000/shift_parts', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(shiftPart.value)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...shiftPart.value,
+        project_id: selectedProjectId.value
+      })
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw new Error(data.message || 'Error');
+      throw new Error(data.message || 'Error creating shift part');
     }
 
-    successMessage.value = 'Shift part created successfully';
+    // reload list from backend
+    await fetchShiftParts();
 
     // reset form
     shiftPart.value = {
-      shift_id: '',
       issue_text: '',
       start_time: '',
       end_time: '',
@@ -74,131 +81,263 @@ async function submitShiftPart() {
     };
 
   } catch (err) {
-    errorMessage.value = err.message;
+    console.error(err);
   }
 }
 
-// --- WATCH PROJECT CHANGE ---
-watch(projectId, () => {
-  fetchProject();
+// --- AUTO FILL ---
+function fillNow() {
+  const now = new Date().toISOString().slice(0, 16);
+  shiftPart.value.start_time = now;
+  shiftPart.value.end_time = now;
+}
+
+// --- TODAY FILTER ---
+const todayShiftParts = computed(() => {
+  const today = new Date().toDateString();
+
+  return shiftParts.value
+    .filter(p => new Date(p.start_time).toDateString() === today)
+    .sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
 });
 
-// initial load
+// --- WATCH PROJECT CHANGE ---
+watch(selectedProjectId, () => {
+  fetchShiftParts();
+});
+
+// --- INIT ---
 onMounted(() => {
-  fetchProject();
+  fetchProjects();
 });
 </script>
 
+
+
 <template>
-  <div class="page">
+  <div class="dashboard-wrapper">
+    <header class="dashboard-header">
+      <div class="time-display">
+        <span class="dot"></span>
+        {{ currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+      </div>
+      
+      <div class="project-selector">
+        <span class="label">Project:</span>
+        <div class="chip-group">
+          <button
+            v-for="p in projects"
+            :key="p.id"
+            :class="['chip', { active: selectedProjectId === p.id }]"
+            @click="selectedProjectId = p.id"
+          >
+            {{ p.name }}
+          </button>
+        </div>
+      </div>
+    </header>
 
-    <h1>User Dashboard</h1>
-
-    <!-- EMPTY STATE -->
-    <div v-if="!projectId" class="empty">
-      <p>Please select a project from the sidebar.</p>
+    <div v-if="!project" class="empty-state">
+      <div class="icon">📁</div>
+      <h2>No Project Selected</h2>
+      <p>Please select a project from the top bar to begin logging time.</p>
     </div>
 
-    <!-- LOADING -->
-    <div v-else-if="loading">
-      <p>Loading project...</p>
-    </div>
+    <div v-else class="dashboard-grid">
+      <section class="view-card">
+        <div class="card-header">
+          <h3>Log New Activity</h3>
+          <button class="btn-ghost" @click="fillNow">Set to Now</button>
+        </div>
 
-    <!-- PROJECT VIEW -->
-    <div v-else-if="project" class="project">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Issue / Task Name</label>
+            <input v-model="shiftPart.issue_text" placeholder="What are you working on?" />
+          </div>
+          
+          <div class="row">
+            <div class="form-group">
+              <label>Start Time</label>
+              <input v-model="shiftPart.start_time" type="datetime-local" />
+            </div>
+            <div class="form-group">
+              <label>End Time</label>
+              <input v-model="shiftPart.end_time" type="datetime-local" />
+            </div>
+          </div>
 
-      <section class="card">
-        <h2>Project Details</h2>
-        <p><strong>Name:</strong> {{ project.name }}</p>
-        <p><strong>Description:</strong> {{ project.description }}</p>
-        <p><strong>Completed:</strong> {{ project.completed ? 'Yes' : 'No' }}</p>
-      </section>
+          <div class="form-group">
+            <label>Notes (Optional)</label>
+            <input v-model="shiftPart.note" placeholder="Add additional details..." />
+          </div>
 
-      <section class="card">
-        <h2>Create Shift Part</h2>
-
-        <div class="form">
-          <input v-model="shiftPart.shift_id" placeholder="Shift ID (time_table.id)" />
-          <input v-model="shiftPart.issue_text" placeholder="Issue text" />
-          <input v-model="shiftPart.start_time" type="datetime-local" />
-          <input v-model="shiftPart.end_time" type="datetime-local" />
-          <input v-model="shiftPart.note" placeholder="Note" />
-
-          <button @click="submitShiftPart">Submit</button>
-
-          <p v-if="successMessage" class="success">{{ successMessage }}</p>
-          <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+          <button class="btn-primary btn-large" @click="submitShiftPart">
+            Create Shift Entry
+          </button>
         </div>
       </section>
 
-    </div>
+      <section class="view-card">
+        <div class="card-header">
+          <h3>Today's History</h3>
+          <span class="count-badge">{{ todayShiftParts.length }} entries</span>
+        </div>
 
+        <div class="shift-list">
+          <div v-if="todayShiftParts.length === 0" class="empty-list">
+            No activities recorded today.
+          </div>
+
+          <div v-for="(p, i) in todayShiftParts" :key="i" class="shift-card">
+            <div class="shift-info">
+              <span class="shift-title">{{ p.issue_text }}</span>
+              <span class="shift-time">{{ new Date(p.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</span>
+            </div>
+            <p v-if="p.note" class="shift-note">{{ p.note }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.page {
+.dashboard-wrapper {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
-h1 {
-  margin: 0;
-}
-
-.empty {
-  padding: 2rem;
-  background: #0f172a;
-  border: 1px dashed #1e293b;
-  border-radius: 10px;
-  color: #94a3b8;
-}
-
-.card {
-  background: #0f172a;
-  border: 1px solid #1e293b;
-  border-radius: 10px;
-  padding: 1.5rem;
-  margin-top: 20px;
-}
-
-.card h2 {
-  margin-top: 0;
-}
-
-.form {
+.dashboard-header {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-input {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #1e293b;
-  background: #020617;
+.time-display {
+  font-size: 1.2rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.project-selector {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.chip-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
   color: white;
 }
 
-button {
-  padding: 0.6rem;
-  background: #3b82f6;
-  border: none;
+/* Grid Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+.view-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.card-header h3 { margin: 0; }
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 0.4rem 0.8rem;
   border-radius: 6px;
-  color: white;
   cursor: pointer;
 }
 
-button:hover {
-  background: #2563eb;
+/* List Styles */
+.shift-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.success {
-  color: #22c55e;
+.shift-card {
+  background: var(--bg-input);
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid var(--primary);
 }
 
-.error {
-  color: #ef4444;
+.shift-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
 }
+
+.shift-title { font-weight: 600; }
+.shift-time { font-size: 0.85rem; color: var(--text-dim); }
+.shift-note { font-size: 0.9rem; color: var(--text-dim); margin: 0; }
+
+.count-badge {
+  background: var(--bg-input);
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-dim);
+}
+
+.icon { font-size: 4rem; margin-bottom: 1rem; }
 </style>
