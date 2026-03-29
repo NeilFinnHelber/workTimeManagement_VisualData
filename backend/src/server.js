@@ -37,7 +37,31 @@ app.get("/users", async (req, res) => {
   }
 });
 
+// hardcoded for first user, would normally use auth to determine who is logged in
+app.get("/users/me", async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
 
+    const CURRENT_USER_ID = 1;
+
+    const rows = await connection.query(
+      "SELECT * FROM users WHERE id = ?",
+      [CURRENT_USER_ID]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Error fetching current user:", err);
+    res.status(500).json({ message: "Error fetching current user" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
 app.get("/projects", async (req, res) => {
   let connection;
@@ -53,7 +77,33 @@ app.get("/projects", async (req, res) => {
   }
 });
 
+// Not fully adjusted: Normally would check if user is in project
+// or maybe do something like me/projects instead in future
 
+app.get("/projects/:id", async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    const { id } = req.params;
+
+    const rows = await connection.query(
+      "SELECT * FROM projects WHERE id = ?",
+      [id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Error fetching project:", err);
+    res.status(500).json({ message: "Server error" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
 app.get("/time_table", async (req, res) => {
   let connection;
@@ -115,6 +165,8 @@ app.get("/charts", async (req, res) => {
     if (connection) connection.release();
   }
 });
+
+
 
 
 //  ---------- all puts ----------
