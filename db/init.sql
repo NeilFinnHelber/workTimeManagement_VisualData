@@ -1,15 +1,19 @@
+create database visual_data;
+use visual_data;
+
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
     role ENUM('manager','developer','admin') NOT NULL
 );
 
 -- testdaten
-INSERT INTO users (name, email, role) VALUES
-('Alice', 'alice@example.com', 'developer'),
-('Bob', 'bob@example.com', 'manager'),
-('Charlie', 'charlie@example.com', 'developer');
+INSERT INTO users (name, email, password_hash, role) VALUES
+('Alice', 'alice@example.com', '$2b$12$...', 'developer'),
+('Bob', 'bob@example.com', '$2b$12$...', 'manager'),
+('Charlie', 'charlie@example.com', '$2b$12$...', 'developer');
 
 
 CREATE TABLE projects (
@@ -26,45 +30,29 @@ INSERT INTO projects (name, description, completed) VALUES
 ('Project Gamma', 'Drittes Testprojekt', TRUE);
 
 
-CREATE TABLE time_table (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    project_id INT NOT NULL,
-    total_start_time DATETIME NOT NULL,
-    total_end_time DATETIME NOT NULL,
-    break_duration INT DEFAULT 0, -- in Minuten
-    note TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) on delete cascade ,
-    FOREIGN KEY (project_id) REFERENCES projects(id) on delete cascade
-);
-
--- testdaten
-INSERT INTO time_table (user_id, project_id, total_start_time, total_end_time, break_duration, note)
-VALUES
-(1, 1, '2026-03-21 08:00:00', '2026-03-21 12:00:00', 15, 'Morning shift'),
-(2, 1, '2026-03-21 09:00:00', '2026-03-21 17:00:00', 60, 'Full day work'),
-(3, 2, '2026-03-21 10:00:00', '2026-03-21 14:00:00', 0, 'Afternoon shift');
-
 
 CREATE TABLE shift_parts (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    shift_id INT NOT NULL,
+    task_type ENUM('fix','meeting','documentation', 'feature', 'chore', 'break', 'review', 'other') NOT NULL,
     issue_text TEXT,
     start_time DATETIME NOT NULL,
     end_time DATETIME NOT NULL,
     note TEXT,
-    FOREIGN KEY (shift_id) REFERENCES time_table(id) on delete cascade
+    project_id INT,
+    user_id INT,
+    FOREIGN KEY (project_id) REFERENCES projects(id) on delete set null,
+    FOREIGN KEY (user_id) REFERENCES users(id) on delete set null
 );
 
 -- testdaten
-INSERT INTO shift_parts (shift_id, issue_text, start_time, end_time, note)
+INSERT INTO shift_parts (user_id, project_id, task_type, issue_text, start_time, end_time, note) 
 VALUES
-(1, 'Fix login bug', '2026-03-21 08:00:00', '2026-03-21 10:00:00', 'Critical bugfix'),
-(1, 'Update README', '2026-03-21 10:15:00', '2026-03-21 12:00:00', 'Documentation'),
-(2, 'Implement feature X', '2026-03-21 09:00:00', '2026-03-21 13:00:00', ''),
-(2, 'Team meeting', '2026-03-21 14:00:00', '2026-03-21 17:00:00', 'Weekly sync'),
-(3, 'Code review', '2026-03-21 10:00:00', '2026-03-21 12:00:00', '');
+(1, 1, 'fix', 'Fix login bug', '2026-03-21 08:00:00', '2026-03-21 10:00:00', 'Critical bugfix'),
+(1, 2, 'chore', 'Update README', '2026-03-21 10:15:00', '2026-03-21 12:00:00', 'Documentation'),
+(2, 1, 'feature', 'Implement feature X', '2026-03-21 09:00:00', '2026-03-21 13:00:00', ''),
+(2, NULL, 'meeting', 'Team meeting', '2026-03-21 14:00:00', '2026-03-21 17:00:00', 'Weekly sync'),
+(3, 1, 'review', 'Code review', '2026-03-21 10:00:00', '2026-03-21 12:00:00', ''),
+(3, NULL, 'break', 'Lunch break', '2026-03-21 12:00:00', '2026-03-21 13:00:00', '');
 
 
 CREATE TABLE charts (

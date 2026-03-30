@@ -6,9 +6,16 @@ const projects = ref([]);
 const selectedProjectId = ref(null);
 const shiftParts = ref([]);
 
+const editingShift = ref(null);
+const showEditModal = ref(false);
+
 const project = computed(() =>
   projects.value.find(p => p.id === selectedProjectId.value)
 );
+
+const props = defineProps({
+  user: Object
+});
 
 // --- TIME ---
 const currentTime = ref(new Date());
@@ -16,6 +23,7 @@ setInterval(() => currentTime.value = new Date(), 1000);
 
 // --- FORM ---
 const shiftPart = ref({
+  task_type: 'other', // default
   issue_text: '',
   start_time: '',
   end_time: '',
@@ -33,13 +41,67 @@ async function fetchProjects() {
   }
 }
 
+function editShiftPart(p) {
+  editingShift.value = {
+    ...p,
+    start_time: p.start_time?.slice(0, 16),
+    end_time: p.end_time?.slice(0, 16)
+  };
+
+  showEditModal.value = true;
+}
+
+async function updateShiftPart() {
+  try {
+    const res = await fetch(
+      `http://localhost:3000/shift_parts/${editingShift.value.id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingShift.value)
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message);
+    }
+
+    showEditModal.value = false;
+    await fetchShiftParts();
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function deleteShiftPart(id) {
+  if (!confirm("Delete this entry?")) return;
+
+  try {
+    const res = await fetch(
+      `http://localhost:3000/shift_parts/${id}`,
+      { method: "DELETE" }
+    );
+
+    if (!res.ok) throw new Error();
+
+    await fetchShiftParts();
+
+  } catch (err) {
+    console.error("Delete failed", err);
+  }
+}
+
+
 // --- FETCH SHIFT PARTS ---
 async function fetchShiftParts() {
   if (!selectedProjectId.value) return;
 
   try {
     const res = await fetch(
-      `http://localhost:3000/shift_parts?project_id=${selectedProjectId.value}`
+      `http://localhost:3000/shift_parts?project_id=${selectedProjectId.value}&user_id=${props.user.id}`
     );
 
     const data = await res.json();
@@ -58,9 +120,14 @@ async function submitShiftPart() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...shiftPart.value,
-        project_id: selectedProjectId.value
-      })
+  user_id: props.user.id, 
+  project_id: selectedProjectId.value,
+  task_type: shiftPart.value.task_type,
+  issue_text: shiftPart.value.issue_text,
+  start_time: shiftPart.value.start_time,
+  end_time: shiftPart.value.end_time,
+  note: shiftPart.value.note
+})
     });
 
     const data = await res.json();
@@ -69,22 +136,20 @@ async function submitShiftPart() {
       throw new Error(data.message || 'Error creating shift part');
     }
 
-    // reload list from backend
     await fetchShiftParts();
 
-    // reset form
     shiftPart.value = {
-      issue_text: '',
-      start_time: '',
-      end_time: '',
-      note: ''
-    };
+  task_type: 'other',
+  issue_text: '',
+  start_time: '',
+  end_time: '',
+  note: ''
+};
 
   } catch (err) {
     console.error(err);
   }
 }
-
 // --- AUTO FILL ---
 function fillNow() {
   const now = new Date().toISOString().slice(0, 16);
@@ -155,6 +220,21 @@ onMounted(() => {
             <label>Issue / Task Name</label>
             <input v-model="shiftPart.issue_text" placeholder="What are you working on?" />
           </div>
+
+          <div class="form-group">
+  <label>Task Type</label>
+  <select v-model="shiftPart.task_type">
+    <option value="fix">Fix</option>
+    <option value="feature">Feature</option>
+    <option value="meeting">Meeting</option>
+    <option value="documentation">Documentation</option>
+    <option value="review">Review</option>
+    <option value="chore">Chore</option>
+    <option value="break">Break</option>
+    <option value="other">Other</option>
+  </select>
+
+</div>
           
           <div class="row">
             <div class="form-group">
@@ -190,19 +270,92 @@ onMounted(() => {
           </div>
 
           <div v-for="(p, i) in todayShiftParts" :key="i" class="shift-card">
-            <div class="shift-info">
-              <span class="shift-title">{{ p.issue_text }}</span>
-              <span class="shift-time">{{ new Date(p.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}</span>
-            </div>
-            <p v-if="p.note" class="shift-note">{{ p.note }}</p>
-          </div>
+  <div class="shift-info">
+    <span class="shift-title">{{ p.issue_text }}</span>
+    <span class="shift-time">
+      {{ new Date(p.start_time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) }}
+    </span>
+  </div>
+
+  <p v-if="p.note" class="shift-note">{{ p.note }}</p>
+
+
+  <div class="shift-actions">
+    <button class="btn-edit" @click="editShiftPart(p)">Edit</button>
+    <button class="btn-delete" @click="deleteShiftPart(p.id)">Delete</button>
+  </div>
+</div>
         </div>
       </section>
     </div>
   </div>
+
+
+  <div v-if="showEditModal" class="modal-overlay">
+  <div class="modal">
+    <h3>Edit Shift</h3>
+
+    <input v-model="editingShift.issue_text" placeholder="Task" />
+
+    <input v-model="editingShift.start_time" type="datetime-local" />
+    <input v-model="editingShift.end_time" type="datetime-local" />
+
+    <input v-model="editingShift.note" placeholder="Note" />
+
+    <div class="modal-actions">
+      <button @click="showEditModal = false">Cancel</button>
+      <button @click="updateShiftPart">Save</button>
+    </div>
+  </div>
+</div>
 </template>
 
 <style scoped>
+
+
+.shift-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-edit {
+  background: #3b82f6;
+  border: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.btn-delete {
+  background: #ef4444;
+  border: none;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal {
+  background: #1c1f26;
+  padding: 1.5rem;
+  border-radius: 10px;
+  width: 300px;
+}
+
+
+
 .dashboard-wrapper {
   display: flex;
   flex-direction: column;

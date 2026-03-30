@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import * as mariadb from "mariadb";
+import bcrypt from "bcryptjs";
 
 
 const app = express();
@@ -105,24 +106,6 @@ app.get("/projects/:id", async (req, res) => {
   }
 });
 
-app.get("/time_table", async (req, res) => {
-  let connection;
-  try {
-    connection = await pool.getConnection();
-    const shifts = await connection.query(
-      `SELECT t.*, u.name AS user_name, p.name AS project_name
-       FROM time_table t
-       JOIN users u ON t.user_id = u.id
-       JOIN projects p ON t.project_id = p.id`
-    );
-    res.json(shifts);
-  } catch (err) {
-    console.error("Error fetching shifts:", err);
-    res.status(500).json({ message: "Error fetching shifts" });
-  } finally {
-    if (connection) connection.release();
-  }
-});
 
 
 
@@ -130,14 +113,38 @@ app.get("/shift_parts", async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
-    const shiftParts = await connection.query(
-      `SELECT sp.*, t.user_id, t.project_id, u.name AS user_name, p.name AS project_name
-       FROM shift_parts sp
-       JOIN time_table t ON sp.shift_id = t.id
-       JOIN users u ON t.user_id = u.id
-       JOIN projects p ON t.project_id = p.id`
-    );
-    res.json(shiftParts);
+
+    const { project_id, user_id } = req.query;
+
+    // Base query with joins
+    let query = `
+      SELECT 
+        sp.*, 
+        u.name AS user_name, 
+        p.name AS project_name
+      FROM shift_parts sp
+      LEFT JOIN users u ON sp.user_id = u.id
+      LEFT JOIN projects p ON sp.project_id = p.id
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (project_id) {
+      query += " AND sp.project_id = ?";
+      params.push(project_id);
+    }
+
+    if (user_id) {
+      query += " AND sp.user_id = ?";
+      params.push(user_id);
+    }
+
+    const rows = await connection.query(query, params);
+res.json(rows);
+
+
+
   } catch (err) {
     console.error("Error fetching shift parts:", err);
     res.status(500).json({ message: "Error fetching shift parts" });
@@ -145,8 +152,6 @@ app.get("/shift_parts", async (req, res) => {
     if (connection) connection.release();
   }
 });
-
-
 
 app.get("/charts", async (req, res) => {
   let connection;
@@ -231,60 +236,7 @@ app.put("/projects/:id", async (req, res) => {
   }
 });
 
-app.put("/time_table/:id", async (req, res) => {
-  let connection;
-  try {
-    connection = await pool.getConnection();
 
-    const { id } = req.params;
-    const {
-      user_id,
-      project_id,
-      total_start_time,
-      total_end_time,
-      break_duration,
-      note,
-    } = req.body;
-
-    if (
-      user_id === undefined ||
-      project_id === undefined ||
-      total_start_time === undefined ||
-      total_end_time === undefined ||
-      break_duration === undefined ||
-      note === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const result = await connection.query(
-      `UPDATE time_table
-       SET user_id = ?, project_id = ?, total_start_time = ?, 
-           total_end_time = ?, break_duration = ?, note = ?
-       WHERE id = ?`,
-      [
-        user_id,
-        project_id,
-        total_start_time,
-        total_end_time,
-        break_duration,
-        note,
-        id,
-      ]
-    );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Time entry not found" });
-    }
-
-    res.json({ message: "Time entry updated successfully" });
-  } catch (err) {
-    console.error("Error updating time entry:", err);
-    res.status(500).json({ message: "Error updating time entry" });
-  } finally {
-    if (connection) connection.release();
-  }
-});
 
 app.put("/shift_parts/:id", async (req, res) => {
   let connection;
@@ -292,24 +244,18 @@ app.put("/shift_parts/:id", async (req, res) => {
     connection = await pool.getConnection();
 
     const { id } = req.params;
-    const { shift_id, issue_text, start_time, end_time, note } = req.body;
+    const { user_id, project_id, task_type, issue_text, start_time, end_time, note } = req.body;
 
-    if (
-      shift_id === undefined ||
-      issue_text === undefined ||
-      start_time === undefined ||
-      end_time === undefined ||
-      note === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+if (!user_id || !task_type || !start_time || !end_time) {
+  return res.status(400).json({ message: "Required fields missing" });
+}
 
-    const result = await connection.query(
-      `UPDATE shift_parts
-       SET shift_id = ?, issue_text = ?, start_time = ?, end_time = ?, note = ?
-       WHERE id = ?`,
-      [shift_id, issue_text, start_time, end_time, note, id]
-    );
+const result = await connection.query(
+  `UPDATE shift_parts
+   SET user_id = ?, project_id = ?, task_type = ?, issue_text = ?, start_time = ?, end_time = ?, note = ?
+   WHERE id = ?`,
+  [user_id, project_id || null, task_type, issue_text, start_time, end_time, note, id]
+);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Shift part not found" });
@@ -443,8 +389,10 @@ app.post("/projects", async (req, res) => {
 });
 
 
-// Create Time Entry
-app.post("/time_table", async (req, res) => {
+
+// Create Shift Part
+// Create Shift Part
+app.post("/shift_parts", async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
@@ -452,79 +400,38 @@ app.post("/time_table", async (req, res) => {
     const {
       user_id,
       project_id,
-      total_start_time,
-      total_end_time,
-      break_duration,
-      note,
+      task_type,
+      issue_text,
+      start_time,
+      end_time,
+      note
     } = req.body;
 
-    if (
-      user_id === undefined ||
-      project_id === undefined ||
-      total_start_time === undefined ||
-      total_end_time === undefined ||
-      break_duration === undefined ||
-      note === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    const result = await connection.query(
-      `INSERT INTO time_table 
-       (user_id, project_id, total_start_time, total_end_time, break_duration, note)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        user_id,
-        project_id,
-        total_start_time,
-        total_end_time,
-        break_duration,
-        note,
-      ]
-    );
-
-    res.status(201).json({
-      message: "Time entry created successfully",
-      id: Number(result.insertId),
-    });
-  } catch (err) {
-    console.error("Error creating time entry:", err);
-    res.status(500).json({ message: "Error creating time entry" });
-  } finally {
-    if (connection) connection.release();
-  }
-});
-
-
-// Create Shift Part
-app.post("/shift_parts", async (req, res) => {
-  let connection;
-  try {
-    connection = await pool.getConnection();
-
-    const { shift_id, issue_text, start_time, end_time, note } = req.body;
-
-    if (
-      shift_id === undefined ||
-      issue_text === undefined ||
-      start_time === undefined ||
-      end_time === undefined ||
-      note === undefined
-    ) {
-      return res.status(400).json({ message: "All fields are required" });
+    // validation
+    if (!user_id || !task_type || !start_time || !end_time) {
+      return res.status(400).json({ message: "Required fields missing" });
     }
 
     const result = await connection.query(
       `INSERT INTO shift_parts 
-       (shift_id, issue_text, start_time, end_time, note)
-       VALUES (?, ?, ?, ?, ?)`,
-      [shift_id, issue_text, start_time, end_time, note]
+       (user_id, project_id, task_type, issue_text, start_time, end_time, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        user_id,
+        project_id || null,
+        task_type,
+        issue_text || null,
+        start_time,
+        end_time,
+        note || null
+      ]
     );
 
     res.status(201).json({
       message: "Shift part created successfully",
       id: Number(result.insertId),
     });
+
   } catch (err) {
     console.error("Error creating shift part:", err);
     res.status(500).json({ message: "Error creating shift part" });
@@ -635,27 +542,7 @@ app.delete("/projects/:id", async (req, res) => {
   }
 })
 
-app.delete("/time_table/:id", async (req, res) => {
-  let connection;
-  try {
-    connection = await pool.getConnection();
-    const { id } = req.params;
-    const result = await connection.query("DELETE FROM time_table WHERE id = ?", [id]);
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Time table not found" });
-    }
-    else {
-      res.json({ message: "Time table part deleted successfully" });
-    }
-  }
-  catch (err) {
-    console.error("Error deleting time table:", err);
-    res.status(500).json({ message: "Error deleting time table" });
-  } finally {
-    if (connection) connection.release();
-  }
-})
 
 app.delete("/shift_parts/:id", async (req, res) => {
   let connection;

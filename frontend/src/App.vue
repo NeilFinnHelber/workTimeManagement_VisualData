@@ -1,27 +1,27 @@
 <script setup>
 import { ref } from 'vue';
 import UserDashboard from './views/UserDashboard.vue';
+import AnalyticsView from './views/AnalyticsView.vue';
 
 const user = ref(null);
 const usernameInput = ref('');
 const activeTab = ref('dashboard');
 const errorMessage = ref('');
 const loading = ref(false);
-
-
+const timeRange = ref('today'); // today | week | month | year
 const showErrorPopup = ref(false);
 const popupMessage = ref('');
 
+// Show error popup
 function showError(msg) {
   popupMessage.value = msg;
   showErrorPopup.value = true;
-
   setTimeout(() => {
     showErrorPopup.value = false;
   }, 3000);
 }
 
-// --- LOGIN WITH BACKEND ---
+// Login with backend
 async function login() {
   if (!usernameInput.value) return;
 
@@ -30,29 +30,19 @@ async function login() {
 
   try {
     const inputName = usernameInput.value.toLowerCase();
-
     const res = await fetch('http://localhost:3000/users');
+    if (!res.ok) throw new Error('Server error');
+
     const users = await res.json();
+    const foundUser = users.find(u => u.name.toLowerCase() === inputName);
 
-    if (!res.ok) {
-      throw new Error('Server error');
-    }
-
-    // case-insensitive match
-    const foundUser = users.find(
-      u => u.name.toLowerCase() === inputName
-    );
-
-    if (!foundUser) {
-      throw new Error('User not found');
-    }
+    if (!foundUser) throw new Error('User not found');
 
     user.value = {
       id: foundUser.id,
       name: foundUser.name,
-      role: foundUser.role
+      role: foundUser.role,
     };
-
   } catch (err) {
     showError(err.message);
   } finally {
@@ -61,39 +51,46 @@ async function login() {
 }
 </script>
 
-
 <template>
   <div id="app-root">
-  <div v-if="showErrorPopup" class="error-popup">
-  {{ popupMessage }}
-</div>
+    <!-- Error Popup -->
+    <div v-if="showErrorPopup" class="error-popup">
+      {{ popupMessage }}
+    </div>
+
+    <!-- Login Screen -->
     <div v-if="!user" class="login-container">
       <div class="login-card">
         <h1>Welcome Back</h1>
         <p>Please sign in to your account</p>
         <div class="form-group">
           <label>Username</label>
-          <input v-model="usernameInput" placeholder="Enter your name..." @keyup.enter="login" />
+          <input
+            v-model="usernameInput"
+            placeholder="Enter your name..."
+            @keyup.enter="login"
+          />
         </div>
         <button class="btn-primary btn-large" @click="login">Sign In</button>
       </div>
     </div>
 
+    <!-- Main App Layout -->
     <div v-else class="app-layout">
       <aside class="sidebar">
         <div class="user-profile">
           <div class="avatar">{{ user.name[0].toUpperCase() }}</div>
           <span>{{ user.name }}</span>
         </div>
-        
+
         <nav class="nav-links">
-          <button 
+          <button
             :class="['nav-item', { active: activeTab === 'dashboard' }]"
             @click="activeTab = 'dashboard'"
           >
             📊 Dashboard
           </button>
-          <button 
+          <button
             :class="['nav-item', { active: activeTab === 'charts' }]"
             @click="activeTab = 'charts'"
           >
@@ -103,15 +100,8 @@ async function login() {
       </aside>
 
       <main class="main-content">
-        <UserDashboard v-if="activeTab === 'dashboard'" />
-        
-        <div v-else class="view-card">
-          <h2>Analytics</h2>
-          <div class="placeholder-content">
-            <span style="font-size: 3rem">📊</span>
-            <p>Data visualization modules loading...</p>
-          </div>
-        </div>
+        <UserDashboard v-if="activeTab === 'dashboard'" :user="user" />
+        <AnalyticsView v-else />
       </main>
     </div>
   </div>
@@ -218,13 +208,14 @@ body {
   color: white;
 }
 
-/* Common UI Elements */
+/* Main Content */
 .main-content {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
 }
 
+/* Buttons */
 .btn-primary {
   background: var(--primary);
   color: white;
@@ -236,7 +227,9 @@ body {
   transition: background 0.2s;
 }
 
-.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
 
 .btn-large {
   width: 100%;
@@ -244,6 +237,7 @@ body {
   font-size: 1rem;
 }
 
+/* Form */
 .form-group {
   text-align: left;
   margin-bottom: 1.5rem;
@@ -267,19 +261,20 @@ input {
   outline: none;
 }
 
+input:focus {
+  border-color: var(--primary);
+}
+
+/* Error Popup */
 .error-popup {
   position: fixed;
   top: 20px;
   right: 20px;
-
   background: #ef4444;
   color: white;
-
   padding: 0.75rem 1.2rem;
   border-radius: 8px;
-
-  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
   font-weight: 500;
   z-index: 999;
   animation: fadeIn 0.2s ease;
@@ -295,6 +290,4 @@ input {
     transform: translateY(0);
   }
 }
-
-input:focus { border-color: var(--primary); }
 </style>
