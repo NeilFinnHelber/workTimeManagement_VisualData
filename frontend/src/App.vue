@@ -1,253 +1,300 @@
-<template>
-  <div class="container">
-    <header class="dashboard-header">
-      <div class="header-left">
-        <h1>API Dashboard</h1>
-        <p class="subtitle">Managing <strong>{{ entity }}</strong></p>
-      </div>
-      <div class="controls">
-        <select v-model="entity" @change="fetchAll" class="entity-select">
-          <option v-for="e in entities" :key="e" :value="e">{{ e.replace('_', ' ').toUpperCase() }}</option>
-        </select>
-        <button class="btn-add" @click="openCreateModal">
-          <span class="icon">+</span> Create {{ entity.replace('_', ' ') }}
-        </button>
-      </div>
-    </header>
+<script setup>
+import { ref } from 'vue';
+import UserDashboard from './views/UserDashboard.vue';
 
-    <div class="table-container">
-      <table v-if="items.length">
-        <thead>
-          <tr>
-            <th v-for="key in tableHeaders" :key="key">{{ key.replace('_', ' ') }}</th>
-            <th class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in items" :key="item.id">
-            <td v-for="key in tableHeaders" :key="key">
-              <span v-if="key === 'completed'">{{ item[key] ? '✅ Yes' : '❌ No' }}</span>
-              <span v-else>{{ item[key] }}</span>
-            </td>
-            <td class="text-right">
-              <button class="btn-edit" @click="openUpdateModal(item)">Edit</button>
-              <button class="btn-delete" @click="confirmDelete(item)">Delete</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div v-else class="empty-state">
-        <p>No data found for {{ entity.replace('_', ' ') }}.</p>
-        <button @click="fetchAll" class="btn-secondary">Retry Fetch</button>
+const user = ref(null);
+const usernameInput = ref('');
+const activeTab = ref('dashboard');
+const errorMessage = ref('');
+const loading = ref(false);
+
+
+const showErrorPopup = ref(false);
+const popupMessage = ref('');
+
+function showError(msg) {
+  popupMessage.value = msg;
+  showErrorPopup.value = true;
+
+  setTimeout(() => {
+    showErrorPopup.value = false;
+  }, 3000);
+}
+
+// --- LOGIN WITH BACKEND ---
+async function login() {
+  if (!usernameInput.value) return;
+
+  errorMessage.value = '';
+  loading.value = true;
+
+  try {
+    const inputName = usernameInput.value.toLowerCase();
+
+    const res = await fetch('http://localhost:3000/users');
+    const users = await res.json();
+
+    if (!res.ok) {
+      throw new Error('Server error');
+    }
+
+    // case-insensitive match
+    const foundUser = users.find(
+      u => u.name.toLowerCase() === inputName
+    );
+
+    if (!foundUser) {
+      throw new Error('User not found');
+    }
+
+    user.value = {
+      id: foundUser.id,
+      name: foundUser.name,
+      role: foundUser.role
+    };
+
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+
+
+<template>
+  <div id="app-root">
+  <div v-if="showErrorPopup" class="error-popup">
+  {{ popupMessage }}
+</div>
+    <div v-if="!user" class="login-container">
+      <div class="login-card">
+        <h1>Welcome Back</h1>
+        <p>Please sign in to your account</p>
+        <div class="form-group">
+          <label>Username</label>
+          <input v-model="usernameInput" placeholder="Enter your name..." @keyup.enter="login" />
+        </div>
+        <button class="btn-primary btn-large" @click="login">Sign In</button>
       </div>
     </div>
 
-    <ModalForm
-      :show="showModal"
-      :title="modalTitle"
-      :fields="activeFields"
-      :formData="formData"
-      :submitText="modalSubmitText"
-      :disableId="true"
-      @close="showModal = false"
-      @submit="handleFormSubmit"
-    />
-
-    <div v-if="showDeleteModal" class="delete-confirm-overlay">
-      <div class="delete-confirm-card">
-        <h3>Are you sure?</h3>
-        <p>You are about to delete an item from <strong>{{ entity }}</strong>. This cannot be undone.</p>
-        <div class="delete-actions">
-          <button @click="showDeleteModal = false" class="btn-secondary">Cancel</button>
-          <button @click="executeDelete" class="btn-danger">Confirm Delete</button>
+    <div v-else class="app-layout">
+      <aside class="sidebar">
+        <div class="user-profile">
+          <div class="avatar">{{ user.name[0].toUpperCase() }}</div>
+          <span>{{ user.name }}</span>
         </div>
-      </div>
+        
+        <nav class="nav-links">
+          <button 
+            :class="['nav-item', { active: activeTab === 'dashboard' }]"
+            @click="activeTab = 'dashboard'"
+          >
+            📊 Dashboard
+          </button>
+          <button 
+            :class="['nav-item', { active: activeTab === 'charts' }]"
+            @click="activeTab = 'charts'"
+          >
+            📈 Analytics
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <UserDashboard v-if="activeTab === 'dashboard'" />
+        
+        <div v-else class="view-card">
+          <h2>Analytics</h2>
+          <div class="placeholder-content">
+            <span style="font-size: 3rem">📊</span>
+            <p>Data visualization modules loading...</p>
+          </div>
+        </div>
+      </main>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, reactive, computed, onMounted } from "vue";
-import ModalForm from "./components/Modal.vue";
-import api from "./api";
-
-const entities = ["users", "projects", "time_table", "shift_parts", "charts"];
-const entity = ref("users");
-const items = ref([]);
-const usersList = ref([]);
-const projectsList = ref([]);
-
-const showModal = ref(false);
-const showDeleteModal = ref(false);
-const modalTitle = ref("");
-const modalSubmitText = ref("");
-const formData = reactive({});
-const itemToDelete = ref(null);
-
-// 1. ALL CONFIGS DEFINED HERE
-const configs = computed(() => ({
-  users: {
-    name: { label: "Name", type: "text" },
-    email: { label: "Email", type: "text" },
-    role: { label: "Role", type: "select", options: [{label: "Admin", value: "admin"}, {label: "User", value: "user"}] }
-  },
-  projects: {
-    name: { label: "Project Name", type: "text" },
-    description: { label: "Description", type: "textarea" },
-    completed: { label: "Completed", type: "select", options: [{label: "Yes", value: true}, {label: "No", value: false}] }
-  },
-  time_table: {
-    user_id: { label: "User", type: "select", options: usersList.value.map(u => ({ label: u.name || `User ${u.id}`, value: u.id })) },
-    project_id: { label: "Project", type: "select", options: projectsList.value.map(p => ({ label: p.name || `Proj ${p.id}`, value: p.id })) },
-    total_start_time: { label: "Start Time", type: "text" },
-    total_end_time: { label: "End Time", type: "text" },
-    note: { label: "Note", type: "textarea" }
-  },
-  shift_parts: {
-    shift_id: { label: "Shift ID", type: "number" },
-    issue_text: { label: "Issue", type: "text" },
-    start_time: { label: "Start Time", type: "text" },
-    end_time: { label: "End Time", type: "text" },
-    note: { label: "Note", type: "textarea" }
-  },
-  charts: {
-    name: { label: "Chart Name", type: "text" },
-    type: { label: "Type", type: "select", options: [{label: "Bar", value: "bar"}, {label: "Line", value: "line"}] },
-    metric: { label: "Metric", type: "select", options: [{label: "Hours", value: "total_hours"}, {label: "Count", value: "count"}] }
-  }
-}));
-
-const activeFields = computed(() => configs.value[entity.value] || {});
-const tableHeaders = computed(() => items.value.length ? Object.keys(items.value[0]) : []);
-
-// 2. FETCH LOGIC
-async function fetchAll() {
-  try {
-    const [resItems, resUsers, resProjects] = await Promise.all([
-      api.get(`/${entity.value}`),
-      api.get('/users'),
-      api.get('/projects')
-    ]);
-    items.value = resItems.data;
-    usersList.value = resUsers.data;
-    projectsList.value = resProjects.data;
-  } catch (err) {
-    console.error("Fetch error:", err);
-    items.value = [];
-  }
+<style>
+:root {
+  --bg-dark: #0f1115;
+  --bg-card: #1c1f26;
+  --bg-input: #2a2f36;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --text-main: #f3f4f6;
+  --text-dim: #9ca3af;
+  --border: #374151;
 }
 
-// 3. MODAL LOGIC
-function openCreateModal() {
-  modalTitle.value = `New ${entity.value.replace('_', ' ')}`;
-  modalSubmitText.value = "Create";
-  
-  // Clear the existing data
-  for (let key in formData) delete formData[key];
-
-  // Pre-fill with empty values based on current entity config
-  const fields = configs.value[entity.value];
-  if (fields) {
-    Object.keys(fields).forEach(key => {
-      formData[key] = ""; 
-    });
-  }
-  
-  showModal.value = true;
+body {
+  margin: 0;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-function openUpdateModal(item) {
-  modalTitle.value = `Edit ${entity.value.replace('_', ' ')}`;
-  modalSubmitText.value = "Update";
-  Object.assign(formData, item);
-  showModal.value = true;
+/* Auth Styles */
+.login-container {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 
-async function handleFormSubmit(data) {
-  try {
-    if (modalSubmitText.value === "Create") {
-      await api.post(`/${entity.value}`, data);
-    } else {
-      await api.put(`/${entity.value}/${data.id}`, data);
-    }
-    showModal.value = false;
-    fetchAll();
-  } catch (err) { alert("Action failed: Check console"); }
-}
-
-function confirmDelete(item) {
-  itemToDelete.value = item;
-  showDeleteModal.value = true;
-}
-
-async function executeDelete() {
-  try {
-    await api.delete(`/${entity.value}/${itemToDelete.value.id}`);
-    showDeleteModal.value = false;
-    fetchAll();
-  } catch (err) { alert("Delete failed"); }
-}
-
-onMounted(fetchAll);
-</script>
-
-<style scoped>
-/* Main Container - Responsive & Fluid */
-.container { 
-  width: 95%; 
-  margin: 2rem auto; 
-  padding: 0 20px;
-  /* Allows the container to grow as wide as the table needs */
-  display: inline-block; 
-  min-width: 95%;
-}
-
-.table-container { 
-  background: rgb(0, 0, 0); 
-  border-radius: 12px; 
-  border: 1px solid #e2e8f0; 
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-  /* This ensures the horizontal scroll only appears if the screen is tiny */
-  overflow-x: auto; 
+.login-card {
+  background: var(--bg-card);
+  padding: 2.5rem;
+  border-radius: 16px;
   width: 100%;
-}
-
-table { 
-  width: 100%; 
-  border-collapse: collapse;
-  /* Prevents text from wrapping too aggressively */
-  white-space: nowrap; 
-}
-
-th, td { 
-  padding: 1rem 1.5rem; 
-  text-align: left;
-}
-
-/* For columns with long notes/text, allow them to be wider */
-td:nth-child(n) {
   max-width: 400px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  text-align: center;
 }
 
-/* DELETE CONFIRMATION (Matching the new theme) */
-.delete-confirm-card { 
-  background: #1e1b4b; 
-  border: 1px solid #ef4444;
-  padding: 2rem; 
-  border-radius: 16px; 
+/* Sidebar & Nav */
+.app-layout {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background: var(--bg-input);
   color: white;
-  text-align: center; 
 }
 
-.btn-danger {
-  background: #ef4444;
+.nav-item.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Common UI Elements */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+.btn-primary {
+  background: var(--primary);
   color: white;
   border: none;
-  padding: 0.7rem 1.5rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s;
 }
+
+.btn-primary:hover { background: var(--primary-hover); }
+
+.btn-large {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.form-group {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.5rem;
+}
+
+input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.8rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: white;
+  outline: none;
+}
+
+.error-popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+
+  background: #ef4444;
+  color: white;
+
+  padding: 0.75rem 1.2rem;
+  border-radius: 8px;
+
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+
+  font-weight: 500;
+  z-index: 999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+input:focus { border-color: var(--primary); }
 </style>

@@ -37,7 +37,31 @@ app.get("/users", async (req, res) => {
   }
 });
 
+// hardcoded for first user, would normally use auth to determine who is logged in
+app.get("/users/me", async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
 
+    const CURRENT_USER_ID = 1;
+
+    const rows = await connection.query(
+      "SELECT * FROM users WHERE id = ?",
+      [CURRENT_USER_ID]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Error fetching current user:", err);
+    res.status(500).json({ message: "Error fetching current user" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
 app.get("/projects", async (req, res) => {
   let connection;
@@ -53,7 +77,33 @@ app.get("/projects", async (req, res) => {
   }
 });
 
+// Not fully adjusted: Normally would check if user is in project
+// or maybe do something like me/projects instead in future
 
+app.get("/projects/:id", async (req, res) => {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+
+    const { id } = req.params;
+
+    const rows = await connection.query(
+      "SELECT * FROM projects WHERE id = ?",
+      [id]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("Error fetching project:", err);
+    res.status(500).json({ message: "Server error" });
+  } finally {
+    if (connection) connection.release();
+  }
+});
 
 app.get("/time_table", async (req, res) => {
   let connection;
@@ -117,33 +167,35 @@ app.get("/charts", async (req, res) => {
 });
 
 
+
+
 //  ---------- all puts ----------
 
 app.put("/users/:id", async (req, res) => {
-let connection;
-try {  connection = await pool.getConnection();
-  const { id } = req.params;
-  const { name, email, role } = req.body;
-    
-  if (!name || !email || !role) {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    const { id } = req.params;
+    const { name, email, role } = req.body;
+
+    if (!name || !email || !role) {
       return res.status(400).json({ message: "All fields are required" });
-  }
-  const result = await connection.query("UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?", [name, email, role, id]);
-  
+    }
+    const result = await connection.query("UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?", [name, email, role, id]);
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "User entry not found" });
     }
-  
-  res.json({ message: "User updated successfully" });
-} 
-catch (err) {
-  console.error("Error updating user:", err);
-  res.status(500).json({ message: "Error updating user" });
-}
-finally 
-{
+
+    res.json({ message: "User updated successfully" });
+  }
+  catch (err) {
+    console.error("Error updating user:", err);
+    res.status(500).json({ message: "Error updating user" });
+  }
+  finally {
     if (connection) connection.release();
-}
+  }
 });
 
 
@@ -231,8 +283,8 @@ app.put("/time_table/:id", async (req, res) => {
     res.status(500).json({ message: "Error updating time entry" });
   } finally {
     if (connection) connection.release();
-    }
-  });
+  }
+});
 
 app.put("/shift_parts/:id", async (req, res) => {
   let connection;
@@ -349,7 +401,7 @@ app.post("/users", async (req, res) => {
 
     res.status(201).json({
       message: "User created successfully",
-     id: Number(result.insertId),
+      id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating user:", err);
@@ -433,7 +485,7 @@ app.post("/time_table", async (req, res) => {
 
     res.status(201).json({
       message: "Time entry created successfully",
-       id: Number(result.insertId),
+      id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating time entry:", err);
@@ -471,7 +523,7 @@ app.post("/shift_parts", async (req, res) => {
 
     res.status(201).json({
       message: "Shift part created successfully",
-       id: Number(result.insertId),
+      id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating shift part:", err);
@@ -527,7 +579,7 @@ app.post("/charts", async (req, res) => {
 
     res.status(201).json({
       message: "Chart created successfully",
-       id: Number(result.insertId),
+      id: Number(result.insertId),
     });
   } catch (err) {
     console.error("Error creating chart:", err);
@@ -544,13 +596,13 @@ app.delete("/users/:id", async (req, res) => {
   try {
     connection = await pool.getConnection();
     const { id } = req.params;
-    const result = await connection.query("DELETE FROM users WHERE id = ?",[id]);
+    const result = await connection.query("DELETE FROM users WHERE id = ?", [id]);
 
     if (result.affectedRows === 0) {
-        return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found" });
     }
     else {
-        res.json({message: "User deleted successfully"});
+      res.json({ message: "User deleted successfully" });
     }
   }
   catch (err) {
@@ -564,16 +616,16 @@ app.delete("/users/:id", async (req, res) => {
 app.delete("/projects/:id", async (req, res) => {
   let connection;
   try {
-      connection = await pool.getConnection();
-      const { id } = req.params;
-      const result = await connection.query("DELETE FROM projects WHERE id = ?",[id]);
+    connection = await pool.getConnection();
+    const { id } = req.params;
+    const result = await connection.query("DELETE FROM projects WHERE id = ?", [id]);
 
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "Project not found" });
-      }
-      else {
-          res.json({message: "Project part deleted successfully"});
-      }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    else {
+      res.json({ message: "Project part deleted successfully" });
+    }
   }
   catch (err) {
     console.error("Error deleting project:", err);
@@ -586,16 +638,16 @@ app.delete("/projects/:id", async (req, res) => {
 app.delete("/time_table/:id", async (req, res) => {
   let connection;
   try {
-      connection = await pool.getConnection();
-      const { id } = req.params;
-      const result = await connection.query("DELETE FROM time_table WHERE id = ?",[id]);
+    connection = await pool.getConnection();
+    const { id } = req.params;
+    const result = await connection.query("DELETE FROM time_table WHERE id = ?", [id]);
 
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "Time table not found" });
-      }
-      else {
-          res.json({message: "Time table part deleted successfully"});
-      }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Time table not found" });
+    }
+    else {
+      res.json({ message: "Time table part deleted successfully" });
+    }
   }
   catch (err) {
     console.error("Error deleting time table:", err);
@@ -608,16 +660,16 @@ app.delete("/time_table/:id", async (req, res) => {
 app.delete("/shift_parts/:id", async (req, res) => {
   let connection;
   try {
-      connection = await pool.getConnection();
-      const { id } = req.params;
-      const result = await connection.query("DELETE FROM shift_parts WHERE id = ?",[id]);
+    connection = await pool.getConnection();
+    const { id } = req.params;
+    const result = await connection.query("DELETE FROM shift_parts WHERE id = ?", [id]);
 
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "Shift part not found" });
-      }
-      else{
-          res.json({ message: "Shift part deleted successfully" });
-      }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Shift part not found" });
+    }
+    else {
+      res.json({ message: "Shift part deleted successfully" });
+    }
   }
   catch (err) {
     console.error("Error deleting shift part:", err);
@@ -630,17 +682,17 @@ app.delete("/shift_parts/:id", async (req, res) => {
 app.delete("/charts/:id", async (req, res) => {
   let connection;
   try {
-      connection = await pool.getConnection();
-      const { id } = req.params;
-      const result = await connection.query("DELETE FROM charts WHERE id = ?",[id]);
+    connection = await pool.getConnection();
+    const { id } = req.params;
+    const result = await connection.query("DELETE FROM charts WHERE id = ?", [id]);
 
 
-      if (result.affectedRows === 0) {
-          return res.status(404).json({ message: "Chart not found" });
-      }
-      else{
-          res.json({ message: "Chart deleted successfully" });
-      }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Chart not found" });
+    }
+    else {
+      res.json({ message: "Chart deleted successfully" });
+    }
   }
   catch (err) {
     console.error("Error deleting chart:", err);
