@@ -6,14 +6,15 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('manager','developer','admin') NOT NULL
+    company_role VARCHAR(50) NOT NULL,
+    editor_permission ENUM ('user', 'admin') DEFAULT 'user'
 );
 
 -- testdaten
-INSERT INTO users (name, email, password_hash, role) VALUES
-('Alice', 'alice@example.com', '$2b$12$...', 'developer'),
-('Bob', 'bob@example.com', '$2b$12$...', 'manager'),
-('Charlie', 'charlie@example.com', '$2b$12$...', 'developer');
+INSERT INTO users (name, email, password_hash, company_role, editor_permission) VALUES
+('Alice admin', 'alice@example.com', '$2b$12$...', 'developer', 'admin'),
+('Bob', 'bob@example.com', '$2b$12$...', 'manager', 'user'),
+('Charlie', 'charlie@example.com', '$2b$12$...', 'developer', 'user');
 
 
 CREATE TABLE projects (

@@ -28,7 +28,9 @@ app.get("/users", async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
-    const users = await connection.query("SELECT * FROM users");
+    const users = await connection.query(
+      "SELECT id, name, email, company_role, editor_permission FROM users"
+    );
     res.json(users);
   } catch (err) {
     console.error("Error fetching users:", err);
@@ -181,24 +183,44 @@ app.put("/users/:id", async (req, res) => {
   try {
     connection = await pool.getConnection();
     const { id } = req.params;
-    const { name, email, role } = req.body;
+    const { name, email, company_role, editor_permission, password } = req.body;
 
-    if (!name || !email || !role) {
-      return res.status(400).json({ message: "All fields are required" });
+    if (!name || !email || !company_role) {
+      return res.status(400).json({ message: "Name, email, and company_role are required" });
     }
-    const result = await connection.query("UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?", [name, email, role, id]);
+
+    // Validate editor_permission
+    const permission = editor_permission === "admin" ? "admin" : "user";
+
+    // Hash the password if provided
+    let password_hash = undefined;
+    if (password) {
+      password_hash = await bcrypt.hash(password, 10);
+    }
+
+    // Build dynamic query
+    let query = `UPDATE users SET name = ?, email = ?, company_role = ?, editor_permission = ?`;
+    const params = [name, email, company_role, permission];
+
+    if (password_hash) {
+      query += `, password_hash = ?`;
+      params.push(password_hash);
+    }
+
+    query += ` WHERE id = ?`;
+    params.push(id);
+
+    const result = await connection.query(query, params);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "User entry not found" });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({ message: "User updated successfully" });
-  }
-  catch (err) {
+    res.json({ message: "User updated successfully", editor_permission: permission });
+  } catch (err) {
     console.error("Error updating user:", err);
     res.status(500).json({ message: "Error updating user" });
-  }
-  finally {
+  } finally {
     if (connection) connection.release();
   }
 });
@@ -328,21 +350,32 @@ app.put("/charts/:id", async (req, res) => {
 
 // ---------- all posts ----------
 
+// Create User  
+// Create User
 // Create User
 app.post("/users", async (req, res) => {
   let connection;
   try {
     connection = await pool.getConnection();
 
-    const { name, email, role } = req.body;
+    const { name, email, password, company_role, editor_permission } = req.body;
 
-    if (!name || !email || !role) {
+    if (!name || !email || !password || !company_role) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
+    // Check for duplicate email
+    const existing = await connection.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (existing.length > 0) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    // Hash password
+    const password_hash = await bcrypt.hash(password, 10);
+
     const result = await connection.query(
-      "INSERT INTO users (name, email, role) VALUES (?, ?, ?)",
-      [name, email, role]
+      "INSERT INTO users (name, email, password_hash, company_role, editor_permission) VALUES (?, ?, ?, ?, ?)",
+      [name, email, password_hash, company_role, editor_permission || 'user']
     );
 
     res.status(201).json({
@@ -356,7 +389,6 @@ app.post("/users", async (req, res) => {
     if (connection) connection.release();
   }
 });
-
 
 // Create Project
 app.post("/projects", async (req, res) => {
