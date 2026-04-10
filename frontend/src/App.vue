@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import UserDashboard from './views/UserDashboard.vue';
 import AnalyticsView from './views/AnalyticsView.vue';
+import AdminDashboard from './views/AdminDashboard.vue';
 
 const user = ref(null);
 const usernameInput = ref('');
@@ -39,10 +40,11 @@ async function login() {
     if (!foundUser) throw new Error('User not found');
 
     user.value = {
-      id: foundUser.id,
-      name: foundUser.name,
-      role: foundUser.role,
-    };
+  id: foundUser.id,
+  name: foundUser.name,
+  company_role: foundUser.company_role,
+  editor_permission: foundUser.editor_permission,
+};
   } catch (err) {
     showError(err.message);
   } finally {
@@ -80,10 +82,19 @@ async function login() {
       <aside class="sidebar">
         <div class="user-profile">
           <div class="avatar">{{ user.name[0].toUpperCase() }}</div>
-          <span>{{ user.name }}</span>
+          <span>{{ user.name }} ({{ user.company_role }})</span>
         </div>
 
         <nav class="nav-links">
+          <!-- Admin Mode Button -->  
+<button
+  v-if="user.editor_permission === 'admin'"
+  :class="['nav-item', { active: activeTab === 'admin' }]"
+  @click="activeTab = 'admin'"
+>
+  🛠 Admin Mode
+</button>
+
           <button
             :class="['nav-item', { active: activeTab === 'dashboard' }]"
             @click="activeTab = 'dashboard'"
@@ -101,6 +112,7 @@ async function login() {
 
       <main class="main-content">
         <UserDashboard v-if="activeTab === 'dashboard'" :user="user" />
+        <AdminDashboard v-else-if="activeTab === 'admin'" />
         <AnalyticsView v-else />
       </main>
     </div>
