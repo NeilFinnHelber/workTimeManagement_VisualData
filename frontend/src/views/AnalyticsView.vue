@@ -181,7 +181,7 @@ function renderCharts() {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
       }
     });
   });
