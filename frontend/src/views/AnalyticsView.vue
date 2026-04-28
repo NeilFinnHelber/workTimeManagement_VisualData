@@ -6,265 +6,421 @@ import {
   BarElement,
   LineController,
   LineElement,
+  PieController,
+  ArcElement,
   CategoryScale,
   LinearScale,
-  PointElement
+  PointElement,
+  Title,
+  Tooltip,
+  Legend
 } from "chart.js";
 
 Chart.register(
     BarController, BarElement,
     LineController, LineElement,
-    CategoryScale, LinearScale, PointElement
+    PieController, ArcElement,
+    CategoryScale, LinearScale, PointElement,
+    Title, Tooltip, Legend
 );
 
 // Reactive state
-const charts = ref([]);
 const shiftParts = ref([]);
-const timeRange = ref("year");
-const selectedProjectId = ref(null);     // ← NEW: Project filter
-const projects = ref([]);                // ← NEW: List of projects for dropdown
+const timeRange = ref("month");
+const selectedProjectId = ref(null);
+const projects = ref([]);
+
+// All available charts
+const allCharts = ref([
+  { id: 1, name: "Hours by Project",          type: "bar",   metric: "time_per_project", group_by: "project",   color: "rgba(59, 130, 246, 0.7)" },
+  { id: 2, name: "Hours by User",            type: "bar",   metric: "time_per_user",   group_by: "user",      color: "rgba(16, 185, 129, 0.7)" },
+  { id: 3, name: "Daily Activity Trend",     type: "line",  metric: "activity_over_time", group_by: "day",    color: "rgba(245, 158, 11, 0.8)" },
+  { id: 4, name: "Project Distribution",     type: "pie",   metric: "time_per_project", group_by: "project" },
+  { id: 5, name: "Average Shift Duration",   type: "bar",   metric: "avg_hours" },
+  { id: 6, name: "Hours per Day of Week",    type: "bar",   metric: "time_per_project", group_by: "weekday", color: "rgba(139, 92, 246, 0.7)" },
+  { id: 7, name: "Top Users by Hours",       type: "bar",   metric: "time_per_user",   group_by: "user",      color: "rgba(249, 115, 22, 0.7)" },
+  { id: 8, name: "Monthly Trend",            type: "line",  metric: "activity_over_time", group_by: "month",  color: "rgba(14, 165, 233, 0.8)" },
+]);
+
+// User-selected chart IDs (loaded from localStorage)
+const selectedChartIds = ref([]);
+
+// Computed: Only show selected charts
+const visibleCharts = ref([]);
+
+const showModal = ref(false);
+
+// Load saved preferences
+function loadSelectedCharts() {
+  const saved = localStorage.getItem('selectedChartIds');
+  if (saved) {
+    selectedChartIds.value = JSON.parse(saved);
+  } else {
+    // Default: show first 6 charts
+    selectedChartIds.value = allCharts.value.slice(0, 6).map(c => c.id);
+  }
+}
+
+function saveSelectedCharts() {
+  localStorage.setItem('selectedChartIds', JSON.stringify(selectedChartIds.value));
+}
+
+// Toggle chart selection
+function toggleChart(id) {
+  if (selectedChartIds.value.includes(id)) {
+    selectedChartIds.value = selectedChartIds.value.filter(cid => cid !== id);
+  } else {
+    selectedChartIds.value.push(id);
+  }
+  saveSelectedCharts();
+  updateVisibleCharts();
+}
+
+function selectAll() {
+  selectedChartIds.value = allCharts.value.map(c => c.id);
+  saveSelectedCharts();
+  updateVisibleCharts();
+}
+
+function deselectAll() {
+  selectedChartIds.value = [];
+  saveSelectedCharts();
+  updateVisibleCharts();
+}
+
+function updateVisibleCharts() {
+  visibleCharts.value = allCharts.value.filter(chart =>
+      selectedChartIds.value.includes(chart.id)
+  );
+}
 
 // Fetch data
 async function fetchData() {
-  const [chartsRes, shiftRes] = await Promise.all([
-    fetch("http://localhost:3000/charts"),
-    fetch("http://localhost:3000/shift_parts")
-  ]);
+  try {
+    const res = await fetch("http://localhost:3000/shift_parts");
+    shiftParts.value = await res.json();
 
-  charts.value = await chartsRes.json();
-  shiftParts.value = await shiftRes.json();
-
-  // Extract unique projects for filter dropdown
-  extractProjects();
-
-  await nextTick();
-  renderCharts();
+    extractProjects();
+    updateVisibleCharts();
+    await nextTick();
+    renderAllCharts();
+  } catch (err) {
+    console.error("Failed to fetch data:", err);
+  }
 }
 
-// NEW: Extract unique projects
 function extractProjects() {
   const projectMap = new Map();
-
   shiftParts.value.forEach(s => {
     if (s.project_id && s.project_name) {
-      projectMap.set(s.project_id, s.project_name);
+      projectMap.set(Number(s.project_id), s.project_name);
     }
   });
-
-  projects.value = Array.from(projectMap, ([id, name]) => ({
-    id: Number(id),
-    name
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  projects.value = Array.from(projectMap, ([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Transform data with project filter
-function buildDataset(chartConfig) {
+// Build Dataset (same as before - shortened for brevity)
+function buildDataset(config) {
   let filtered = filterByTime(shiftParts.value);
 
-  // === NEW: Apply Project Filter ===
   if (selectedProjectId.value !== null) {
-    filtered = filtered.filter(
-        s => Number(s.project_id) === selectedProjectId.value
-    );
+    filtered = filtered.filter(s => Number(s.project_id) === selectedProjectId.value);
   }
 
-  // Filter by user/project from chart config (if any)
-  if (chartConfig.filter_user_id) {
-    filtered = filtered.filter(s => Number(s.user_id) === Number(chartConfig.filter_user_id));
-  }
-
-  if (chartConfig.filter_project_id && !selectedProjectId.value) {
-    filtered = filtered.filter(s => Number(s.project_id) === Number(chartConfig.filter_project_id));
-  }
-
-  // Special case: average hours
-  if (chartConfig.metric === "avg_hours") {
-    const durations = filtered.map(s => {
-      const start = new Date(s.start_time);
-      const end = new Date(s.end_time);
-      return (end - start) / (1000 * 60 * 60);
-    });
-
-    const avg = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-    return { labels: ["Average"], data: [avg] };
-  }
-
-  // Grouped metrics
   const map = {};
-  filtered.forEach(s => {
-    let key;
 
-    switch (chartConfig.group_by) {
-      case "user":
-        key = s.user_name || "Unknown User";
-        break;
-      case "project":
-        key = s.project_name || "Unassigned";
-        break;
-      case "day":
+  filtered.forEach(s => {
+    let key = "N/A";
+
+    switch (config.group_by) {
+      case "user":    key = s.user_name || "Unknown"; break;
+      case "project": key = s.project_name || "Unassigned"; break;
+      case "day":     key = new Date(s.start_time).toISOString().split("T")[0]; break;
+      case "month":
         const d = new Date(s.start_time);
-        key = d.toISOString().split("T")[0];
+        key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
         break;
-      default:
-        key = s[chartConfig.group_by] || "N/A";
+      case "weekday":
+        const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        key = days[new Date(s.start_time).getDay()];
+        break;
     }
 
     if (!map[key]) map[key] = 0;
 
-    if (chartConfig.metric === "time_per_project" || chartConfig.metric === "time_per_user") {
-      const start = new Date(s.start_time);
-      const end = new Date(s.end_time);
-      map[key] += (end - start) / (1000 * 60 * 60);
-    }
-
-    if (chartConfig.metric === "activity_over_time") {
+    if (config.metric.includes("time")) {
+      const duration = (new Date(s.end_time) - new Date(s.start_time)) / (1000 * 60 * 60);
+      map[key] += duration;
+    } else if (config.metric === "activity_over_time") {
       map[key] += 1;
     }
   });
 
-  return {
-    labels: Object.keys(map),
-    data: Object.values(map)
-  };
+  if (config.metric === "avg_hours") {
+    const durations = filtered.map(s =>
+        (new Date(s.end_time) - new Date(s.start_time)) / (1000 * 60 * 60)
+    );
+    const avg = durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : 0;
+    return { labels: ["Average"], data: [Number(avg.toFixed(2))] };
+  }
+
+  return { labels: Object.keys(map), data: Object.values(map) };
 }
 
-// Time filtering (unchanged)
 function filterByTime(data) {
   const now = new Date();
   return data.filter(s => {
     const date = new Date(s.start_time);
-
     switch (timeRange.value) {
-      case "today":
-        return date.toDateString() === now.toDateString();
-      case "week":
-        const weekAgo = new Date(now);
-        weekAgo.setDate(now.getDate() - 7);
-        return date >= weekAgo && date <= now;
-      case "month":
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-      case "year":
-        return date.getFullYear() === now.getFullYear();
-      default:
-        return true;
+      case "today": return date.toDateString() === now.toDateString();
+      case "week":  return date >= new Date(now.setDate(now.getDate()-7));
+      case "month": return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+      case "year":  return date.getFullYear() === now.getFullYear();
+      default: return true;
     }
   });
 }
 
-// Render charts
+// Rendering
 const chartInstances = {};
 
-function renderCharts() {
-  charts.value.forEach(chartConfig => {
-    const canvas = document.getElementById(`chart-${chartConfig.id}`);
+function renderAllCharts() {
+  visibleCharts.value.forEach(config => {
+    const canvas = document.getElementById(`chart-${config.id}`);
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    if (chartInstances[config.id]) chartInstances[config.id].destroy();
 
-    if (chartInstances[chartConfig.id]) {
-      chartInstances[chartConfig.id].destroy();
-    }
+    const dataset = buildDataset(config);
+    const isPie = config.type === "pie";
 
-    const dataset = buildDataset(chartConfig);
-
-    chartInstances[chartConfig.id] = new Chart(ctx, {
-      type: chartConfig.type,
+    chartInstances[config.id] = new Chart(canvas.getContext("2d"), {
+      type: config.type,
       data: {
         labels: dataset.labels,
         datasets: [{
-          label: chartConfig.name,
+          label: config.name,
           data: dataset.data,
-          backgroundColor: "rgba(59, 130, 246, 0.5)",
-          borderColor: "#3b82f6",
-          borderWidth: 2,
+          backgroundColor: isPie
+              ? generateColors(dataset.labels.length)
+              : config.color || "#3b82f6",
+          borderColor: "#fff",
+          borderWidth: isPie ? 2 : 1,
         }]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: isPie ? "bottom" : "top" },
+          title: { display: true, text: config.name, font: { size: 16 } }
+        },
+        scales: !isPie ? { y: { beginAtZero: true } } : undefined
       }
     });
   });
 }
 
+function generateColors(count) {
+  const palette = ["#3b82f6","#10b981","#f59e0b","#ec4899","#8b5cf6","#f97316","#06b67f","#14b8a6"];
+  return Array.from({ length: count }, (_, i) => palette[i % palette.length] + "dd");
+}
+
 // Watchers
 watch([timeRange, selectedProjectId], () => {
-  nextTick(() => renderCharts());
+  nextTick(renderAllCharts);
 });
 
-// Initial fetch
-onMounted(fetchData);
+watch(visibleCharts, () => {
+  nextTick(renderAllCharts);
+}, { deep: true });
+
+// Init
+onMounted(() => {
+  loadSelectedCharts();
+  fetchData();
+});
 </script>
 
 <template>
-  <div class="controls">
-    <!-- Time Range -->
-    <div class="filter-bar">
-      <button :class="{ active: timeRange === 'today' }" @click="timeRange = 'today'">Today</button>
-      <button :class="{ active: timeRange === 'week' }" @click="timeRange = 'week'">Week</button>
-      <button :class="{ active: timeRange === 'month' }" @click="timeRange = 'month'">Month</button>
-      <button :class="{ active: timeRange === 'year' }" @click="timeRange = 'year'">Year</button>
+  <div class="dashboard">
+    <div class="controls">
+      <div class="filter-bar">
+        <button :class="{ active: timeRange === 'today' }" @click="timeRange = 'today'">Today</button>
+        <button :class="{ active: timeRange === 'week' }" @click="timeRange = 'week'">Week</button>
+        <button :class="{ active: timeRange === 'month' }" @click="timeRange = 'month'">Month</button>
+        <button :class="{ active: timeRange === 'year' }" @click="timeRange = 'year'">Year</button>
+      </div>
+
+      <div class="project-filter">
+        <label>Project:</label>
+        <select v-model="selectedProjectId">
+          <option :value="null">All Projects</option>
+          <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+        </select>
+      </div>
+
+      <button @click="showModal = true" class="manage-btn">
+        Manage Charts ({{ visibleCharts.length }}/{{ allCharts.length }})
+      </button>
     </div>
 
-    <!-- NEW: Project Filter -->
-    <div class="project-filter">
-      <label for="project-select">Project:</label>
-      <select id="project-select" v-model="selectedProjectId">
-        <option :value="null">All Projects</option>
-        <option v-for="p in projects" :key="p.id" :value="p.id">
-          {{ p.name }}
-        </option>
-      </select>
+    <div class="analytics-container">
+      <h1>Analytics Dashboard</h1>
+
+      <div v-if="visibleCharts.length === 0" class="empty-state">
+        <p>No charts selected. Click "Manage Charts" to choose graphs.</p>
+      </div>
+
+      <div class="charts-grid">
+        <div v-for="config in visibleCharts" :key="config.id" class="chart-card">
+          <canvas :id="`chart-${config.id}`" height="300"></canvas>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="analytics-container">
-    <h2>Analytics Dashboard</h2>
+    <!-- Manage Charts Modal -->
+    <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+      <div class="modal">
+        <h2>Manage Charts</h2>
+        <p>Select which graphs to display:</p>
 
-    <div class="charts-grid">
-      <div v-for="c in charts" :key="c.id" class="chart-card">
-        <h3>{{ c.name }}</h3>
-        <canvas :id="`chart-${c.id}`" height="200"></canvas>
+        <div class="chart-list">
+          <label v-for="chart in allCharts" :key="chart.id" class="chart-option">
+            <input
+                type="checkbox"
+                :checked="selectedChartIds.includes(chart.id)"
+                @change="toggleChart(chart.id)"
+            />
+            <span>{{ chart.name }}</span>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button @click="selectAll" class="secondary">Select All</button>
+          <button @click="deselectAll" class="secondary">Deselect All</button>
+          <button @click="showModal = false" class="primary">Done</button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.analytics-container {
+.dashboard {
+  padding: 1.5rem;
+}
+
+.controls {
   display: flex;
-  flex-direction: column;
-  gap: 2rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filter-bar button {
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: #3b82f6;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-bar button.active,
+.filter-bar button:hover {
+  background: #1e40af;
+  transform: translateY(-1px);
 }
 
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 1.8rem;
 }
 
 .chart-card {
-  background: var(--bg-card);
-  padding: 1rem;
-  border-radius: 12px;
+  background: var(--bg-card, #1f2937);
+  padding: 1.25rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  min-height: 340px;
 }
 
-.filter-bar {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
+h1 {
+  margin: 0 0 1.5rem 0;
+  color: #e2e8f0;
 }
 
-.filter-bar button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 6px;
-  background: #3b82f6;
+.manage-btn {
+  padding: 0.65rem 1.25rem;
+  background: #64748b;
   color: white;
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
 }
 
-.filter-bar button:hover {
-  background: #2563eb;
+.manage-btn:hover {
+  background: #475569;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-card, #1f2937);
+  padding: 2rem;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.chart-list {
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chart-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chart-option:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #94a3b8;
+  font-size: 1.1rem;
 }
 </style>
