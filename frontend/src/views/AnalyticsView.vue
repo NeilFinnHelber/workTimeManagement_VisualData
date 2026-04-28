@@ -27,36 +27,89 @@ Chart.register(
 // Reactive state
 const shiftParts = ref([]);
 const timeRange = ref("month");
+const startDate = ref("");
+const endDate = ref("");
 const selectedProjectId = ref(null);
 const projects = ref([]);
 
 // All available charts
 const allCharts = ref([
-  { id: 1, name: "Hours by Project",          type: "bar",   metric: "time_per_project", group_by: "project",   color: "rgba(59, 130, 246, 0.7)" },
-  { id: 2, name: "Hours by User",            type: "bar",   metric: "time_per_user",   group_by: "user",      color: "rgba(16, 185, 129, 0.7)" },
-  { id: 3, name: "Daily Activity Trend",     type: "line",  metric: "activity_over_time", group_by: "day",    color: "rgba(245, 158, 11, 0.8)" },
-  { id: 4, name: "Project Distribution",     type: "pie",   metric: "time_per_project", group_by: "project" },
-  { id: 5, name: "Average Shift Duration",   type: "bar",   metric: "avg_hours" },
-  { id: 6, name: "Hours per Day of Week",    type: "bar",   metric: "time_per_project", group_by: "weekday", color: "rgba(139, 92, 246, 0.7)" },
-  { id: 7, name: "Top Users by Hours",       type: "bar",   metric: "time_per_user",   group_by: "user",      color: "rgba(249, 115, 22, 0.7)" },
-  { id: 8, name: "Monthly Trend",            type: "line",  metric: "activity_over_time", group_by: "month",  color: "rgba(14, 165, 233, 0.8)" },
+  {
+    id: 1,
+    name: "Hours by Project",
+    type: "bar",
+    metric: "time_per_project",
+    group_by: "project",
+    color: "rgba(59, 130, 246, 0.7)"
+  },
+  {
+    id: 2,
+    name: "Hours by User",
+    type: "bar",
+    metric: "time_per_user",
+    group_by: "user",
+    color: "rgba(16, 185, 129, 0.7)"
+  },
+  {
+    id: 3,
+    name: "Daily Activity Trend",
+    type: "line",
+    metric: "activity_over_time",
+    group_by: "day",
+    color: "rgba(245, 158, 11, 0.8)"
+  },
+  {
+    id: 4,
+    name: "Project Distribution",
+    type: "pie",
+    metric: "time_per_project",
+    group_by: "project"
+  },
+  {
+    id: 5,
+    name: "Average Shift Duration",
+    type: "bar",
+    metric: "avg_hours"
+  },
+  {
+    id: 6,
+    name: "Hours per Day of Week",
+    type: "bar",
+    metric: "time_per_project",
+    group_by: "weekday",
+    color: "rgba(139, 92, 246, 0.7)"
+  },
+  {
+    id: 7,
+    name: "Top Users by Hours",
+    type: "bar",
+    metric: "time_per_user",
+    group_by: "user",
+    color: "rgba(249, 115, 22, 0.7)"
+  },
+  {
+    id: 8,
+    name: "Monthly Trend",
+    type: "line",
+    metric: "activity_over_time",
+    group_by: "month",
+    color: "rgba(14, 165, 233, 0.8)"
+  },
 ]);
 
-// User-selected chart IDs (loaded from localStorage)
+// User-selected chart IDs
 const selectedChartIds = ref([]);
-
-// Computed: Only show selected charts
 const visibleCharts = ref([]);
-
 const showModal = ref(false);
 
-// Load saved preferences
+const chartInstances = {};
+
+// Load saved chart preferences
 function loadSelectedCharts() {
   const saved = localStorage.getItem('selectedChartIds');
   if (saved) {
     selectedChartIds.value = JSON.parse(saved);
   } else {
-    // Default: show first 6 charts
     selectedChartIds.value = allCharts.value.slice(0, 6).map(c => c.id);
   }
 }
@@ -65,7 +118,6 @@ function saveSelectedCharts() {
   localStorage.setItem('selectedChartIds', JSON.stringify(selectedChartIds.value));
 }
 
-// Toggle chart selection
 function toggleChart(id) {
   if (selectedChartIds.value.includes(id)) {
     selectedChartIds.value = selectedChartIds.value.filter(cid => cid !== id);
@@ -120,7 +172,7 @@ function extractProjects() {
       .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Build Dataset (same as before - shortened for brevity)
+// Build Dataset
 function buildDataset(config) {
   let filtered = filterByTime(shiftParts.value);
 
@@ -134,15 +186,21 @@ function buildDataset(config) {
     let key = "N/A";
 
     switch (config.group_by) {
-      case "user":    key = s.user_name || "Unknown"; break;
-      case "project": key = s.project_name || "Unassigned"; break;
-      case "day":     key = new Date(s.start_time).toISOString().split("T")[0]; break;
+      case "user":
+        key = s.user_name || "Unknown";
+        break;
+      case "project":
+        key = s.project_name || "Unassigned";
+        break;
+      case "day":
+        key = new Date(s.start_time).toISOString().split("T")[0];
+        break;
       case "month":
         const d = new Date(s.start_time);
-        key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         break;
       case "weekday":
-        const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         key = days[new Date(s.start_time).getDay()];
         break;
     }
@@ -161,36 +219,57 @@ function buildDataset(config) {
     const durations = filtered.map(s =>
         (new Date(s.end_time) - new Date(s.start_time)) / (1000 * 60 * 60)
     );
-    const avg = durations.length ? durations.reduce((a,b)=>a+b,0)/durations.length : 0;
+    const avg = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
     return { labels: ["Average"], data: [Number(avg.toFixed(2))] };
   }
 
   return { labels: Object.keys(map), data: Object.values(map) };
 }
 
+// Fixed filterByTime function
 function filterByTime(data) {
-  const now = new Date();
+  if (!data || data.length === 0) return [];
+
   return data.filter(s => {
-    const date = new Date(s.start_time);
+    const shiftDate = new Date(s.start_time);
+
+    if (timeRange.value === "custom") {
+      if (!startDate.value || !endDate.value) return false;
+      const from = new Date(startDate.value);
+      const to = new Date(endDate.value);
+      to.setHours(23, 59, 59, 999);
+      return shiftDate >= from && shiftDate <= to;
+    }
+
+    const now = new Date();
+
     switch (timeRange.value) {
-      case "today": return date.toDateString() === now.toDateString();
-      case "week":  return date >= new Date(now.setDate(now.getDate()-7));
-      case "month": return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-      case "year":  return date.getFullYear() === now.getFullYear();
-      default: return true;
+      case "today":
+        return shiftDate.toDateString() === now.toDateString();
+      case "week":
+        const weekAgo = new Date(now);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return shiftDate >= weekAgo;
+      case "month":
+        return shiftDate.getMonth() === now.getMonth() &&
+            shiftDate.getFullYear() === now.getFullYear();
+      case "year":
+        return shiftDate.getFullYear() === now.getFullYear();
+      default:
+        return true;
     }
   });
 }
 
-// Rendering
-const chartInstances = {};
-
+// Render charts
 function renderAllCharts() {
   visibleCharts.value.forEach(config => {
     const canvas = document.getElementById(`chart-${config.id}`);
     if (!canvas) return;
 
-    if (chartInstances[config.id]) chartInstances[config.id].destroy();
+    if (chartInstances[config.id]) {
+      chartInstances[config.id].destroy();
+    }
 
     const dataset = buildDataset(config);
     const isPie = config.type === "pie";
@@ -223,20 +302,20 @@ function renderAllCharts() {
 }
 
 function generateColors(count) {
-  const palette = ["#3b82f6","#10b981","#f59e0b","#ec4899","#8b5cf6","#f97316","#06b67f","#14b8a6"];
+  const palette = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6", "#f97316", "#06b67f", "#14b8a6"];
   return Array.from({ length: count }, (_, i) => palette[i % palette.length] + "dd");
 }
 
 // Watchers
-watch([timeRange, selectedProjectId], () => {
+watch([timeRange, startDate, endDate, selectedProjectId], () => {
+  if (timeRange.value !== "custom") {
+    startDate.value = "";
+    endDate.value = "";
+  }
   nextTick(renderAllCharts);
 });
 
-watch(visibleCharts, () => {
-  nextTick(renderAllCharts);
-}, { deep: true });
-
-// Init
+// Initialize
 onMounted(() => {
   loadSelectedCharts();
   fetchData();
@@ -246,18 +325,35 @@ onMounted(() => {
 <template>
   <div class="dashboard">
     <div class="controls">
+      <!-- Time Range -->
       <div class="filter-bar">
         <button :class="{ active: timeRange === 'today' }" @click="timeRange = 'today'">Today</button>
         <button :class="{ active: timeRange === 'week' }" @click="timeRange = 'week'">Week</button>
         <button :class="{ active: timeRange === 'month' }" @click="timeRange = 'month'">Month</button>
         <button :class="{ active: timeRange === 'year' }" @click="timeRange = 'year'">Year</button>
+        <button :class="{ active: timeRange === 'custom' }" @click="timeRange = 'custom'">Custom</button>
       </div>
 
+      <!-- Custom Date Range -->
+      <div v-if="timeRange === 'custom'" class="custom-date-range">
+        <div>
+          <label>From:</label>
+          <input type="date" v-model="startDate" />
+        </div>
+        <div>
+          <label>To:</label>
+          <input type="date" v-model="endDate" />
+        </div>
+      </div>
+
+      <!-- Project Filter -->
       <div class="project-filter">
         <label>Project:</label>
         <select v-model="selectedProjectId">
           <option :value="null">All Projects</option>
-          <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          <option v-for="p in projects" :key="p.id" :value="p.id">
+            {{ p.name }}
+          </option>
         </select>
       </div>
 
@@ -314,11 +410,10 @@ onMounted(() => {
 
 .controls {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
   align-items: center;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
 }
 
 .filter-bar button {
@@ -338,6 +433,59 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
+.custom-date-range {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.custom-date-range div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-date-range label {
+  font-weight: 500;
+  color: #cbd5e1;
+}
+
+.custom-date-range input[type="date"] {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #1e2937;
+  color: white;
+}
+
+.project-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-filter select {
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: #1e2937;
+  color: white;
+  border: 1px solid #475569;
+}
+
+.manage-btn {
+  padding: 0.65rem 1.25rem;
+  background: #64748b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.manage-btn:hover {
+  background: #475569;
+}
+
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
@@ -355,19 +503,6 @@ onMounted(() => {
 h1 {
   margin: 0 0 1.5rem 0;
   color: #e2e8f0;
-}
-
-.manage-btn {
-  padding: 0.65rem 1.25rem;
-  background: #64748b;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.manage-btn:hover {
-  background: #475569;
 }
 
 .modal-overlay {
@@ -407,7 +542,7 @@ h1 {
 }
 
 .chart-option:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .modal-actions {
